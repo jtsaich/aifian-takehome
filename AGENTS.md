@@ -35,6 +35,7 @@ Single-context: root `GLOSSARY.md` + `docs/adr/`. See `docs/agents/domain.md`.
 - 本機啟動（app＋Postgres）：`docker compose up --build`，開 http://localhost:8000 。`init` 服務先跑 `bakery-init`（Alembic 升到 head＋種入門市、品項、demo 傳檔者、demo 登入帳號，可重跑），`app` 才啟動。帳密在 README。
 - 部署到 Cloud Run＋Neon：`GCP_PROJECT=... DATABASE_URL=...?sslmode=require scripts/deploy.sh`（可重跑；`DRY_RUN=1` 只印指令）。詳見 README「部署」。正式環境的 migration 由 Cloud Run job 執行，不在容器啟動時跑。新增 secret 時加到 `scripts/deploy.sh` 的 `SECRETS`。
 - 測試：`uv run pytest`（需要 Docker：testcontainers 每次測試起一個 Postgres）。`client` fixture 已用總部帳號登入；`make_client("kitchen")`／`make_client(None)` 拿其他角色或匿名。
+- Demo 劇本（9 步，對著跑起來的網站經 HTTP 重播）：`docker compose up --build` 之後 `uv run bakery-demo --reset`（`src/bakery/demo.py`）。先用今天的日期把模擬檔產生到 `demo_data/`，`--reset` 在本機用 `bakery-init --wipe-all-data` 清空資料庫；非本機的資料庫要 `--database-url` 加 `--wipe-remote` 才會清。`tests/test_demo.py` 用測試 app 跑整段劇本：改了回覆文字或流程讓劇本不成立，要一起改 `demo.py` 的檢查。
 - 新增網頁：router 登記在 `src/bakery/web/app.py` 的 `ROUTERS`，標明屬於哪個 `Area`；哪個角色能看哪個 `Area` 只寫在 `src/bakery/web/access.py` 的 `ACCESS`。`None`＝公開（只有登入頁和 LINE webhook）。新頁面也要加進 `tests/test_login.py` 的 `PAGES`。寫入動作用 `Depends(current_account)` 拿到帳號並記錄下來。
 - 新增 migration（歷史保持線性，一張 ticket 一個）：`DATABASE_URL=... uv run alembic revision --autogenerate --rev-id 000N -m "<slug>"`，產生後要人工檢查。
 - 舊格式檔轉範本（FDE 導入工具，歷史資料匯入前用）：`uv run convert-legacy <門市代碼> <舊檔.xlsx> [-o 輸出.xlsx]`；轉換器一家門市一個，在 `src/bakery/legacy.py` 的 `CONVERTERS`。轉好的檔由總部人員在 `/history/import` 匯入（`process_upload(..., historical=True)`）。

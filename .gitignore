@@ -14,3 +14,4 @@ data/uploads/
 .DS_Store
 docs/design.pdf
 legacy_converted/
+demo_data/

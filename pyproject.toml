@@ -22,6 +22,7 @@ dependencies = [
 generate-mock-data = "bakery.mockdata.__main__:main"
 bakery-init = "bakery.db:init_main"
 convert-legacy = "bakery.legacy:main"
+bakery-demo = "bakery.demo:main"
 
 [dependency-groups]
 dev = [

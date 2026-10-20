@@ -13,15 +13,14 @@ from datetime import date, datetime
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, create_engine, text
+from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from testcontainers.postgres import PostgresContainer
 
 from bakery.catalog import store_by_code
 from bakery.clock import TAIPEI
-from bakery.db import upgrade_database
-from bakery.models import Base
-from bakery.seed import DEMO_PASSWORD, seed_demo_accounts, seed_reference_data
+from bakery.db import seed, upgrade_database, wipe_data
+from bakery.seed import DEMO_PASSWORD
 from bakery.template import FIRST_DATA_ROW, SHEET_NAME, build_template
 from bakery.web.app import create_app
 from bakery.web.deps import get_now
@@ -48,13 +47,9 @@ def engine(database_url: str) -> Iterator[Engine]:
 
 def reset_database(engine: Engine) -> None:
     """Empty every table and reseed: the state each test starts from."""
-    tables = ", ".join(t.name for t in Base.metadata.sorted_tables)
-    with engine.begin() as conn:
-        # TRUNCATE bypasses the row-level append-only trigger on uploads.
-        conn.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
     with Session(engine) as s:
-        seed_reference_data(s)
-        seed_demo_accounts(s)
+        wipe_data(s)
+        seed(s)
         s.commit()
 
 
