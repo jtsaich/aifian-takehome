@@ -22,6 +22,7 @@
   nav .account form { margin: 0; }
   form.login { display: flex; flex-direction: column; gap: .75rem; max-width: 18rem; }
   .error { color: #b00020; font-weight: bold; }
+  .flag { background: #ffe0e0; border: 1px solid #d77; padding: 0 .3rem; font-size: .8rem; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -32,6 +33,7 @@
   <a href="/bindings">門市綁定</a>
   <a href="/demo/upload">模擬群組上傳</a>
   {% endif %}
+  {% if can(Area.CUSTOMERS) %}<a href="/customers">客人資料</a>{% endif %}
   {% if account %}
   <span class="account">
     <span class="account-name">{{ account.display_name }}</span>
