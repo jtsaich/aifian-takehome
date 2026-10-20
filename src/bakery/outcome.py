@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
-from bakery.models import ChangeDecision, ChangeField, ChangeKind
+from bakery.models import ChangeDecision, ChangeField, ChangeKind, ReviewStatus
 
 
 class Severity(StrEnum):
@@ -122,6 +122,18 @@ class OrderChange:
 
 
 @dataclass(frozen=True)
+class HeldChange:
+    """A 待確認 the 門市 hears about again: sent once more unchanged (status pending or
+    rejected), or decided by 總部 since their last upload (confirmed or rejected).
+    `diffs` are the change's fields as first held, old → new."""
+
+    order_no: str
+    kinds: tuple[ChangeKind, ...]
+    diffs: tuple[FieldDiff, ...]
+    status: ReviewStatus
+
+
+@dataclass(frozen=True)
 class UploadOutcome:
     store_code: str | None
     store_name: str | None
@@ -134,6 +146,10 @@ class UploadOutcome:
     new_order_nos: tuple[str, ...] = ()  # 單號 seen for the first time
     unchanged_order_nos: tuple[str, ...] = ()  # on record with identical content: never mentioned
     changes: tuple[OrderChange, ...] = ()
+    # 待確認 sent again with the same content: no new 待確認, a reminder in the reply.
+    repeated: tuple[HeldChange, ...] = ()
+    # 總部's decisions on this 門市's 待確認 since its last upload: the reply opens with them.
+    decisions: tuple[HeldChange, ...] = ()
 
     @property
     def rejected_row_count(self) -> int:

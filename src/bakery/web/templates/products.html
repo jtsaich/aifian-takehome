@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}品項{% endblock %}
+{% block content %}
+<p class="muted">門市在範本「品項」欄寫的字，要跟品項名稱或品項別名完全一樣才收。補上品項或別名之後，門市把同一份檔案再傳一次，原本沒有收的列就會收進來。</p>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+<table>
+  <thead><tr><th>代碼</th><th>品項</th><th>品項別名</th>{% if can(Area.CONFIRMATIONS) %}<th>新增別名</th>{% endif %}</tr></thead>
+  <tbody>
+    {% for p in products %}
+    <tr class="product">
+      <td>{{ p.code }}</td>
+      <td class="product-name">{{ p.name }}</td>
+      <td class="aliases">{% for a in p.aliases|sort(attribute="id") %}{{ a.alias }}{% if not loop.last %}、{% endif %}{% endfor %}</td>
+      {% if can(Area.CONFIRMATIONS) %}
+      <td>
+        <form method="post" action="/products">
+          <input type="hidden" name="kind" value="alias">
+          <input type="hidden" name="product_code" value="{{ p.code }}">
+          <input type="text" name="name" required maxlength="64" aria-label="{{ p.name }} 的新別名">
+          <button type="submit">加別名</button>
+        </form>
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if can(Area.CONFIRMATIONS) %}
+<h2>新增品項</h2>
+<form class="upload" method="post" action="/products">
+  <input type="hidden" name="kind" value="product">
+  <label>品項名稱 <input type="text" name="name" required maxlength="64"></label>
+  <button type="submit">新增品項</button>
+</form>
+{% endif %}
+{% endblock %}

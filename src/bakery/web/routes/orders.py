@@ -9,8 +9,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from bakery.changes import DATE_FIELDS, FIELD_LABELS, KIND_LABELS
-from bakery.models import Change, ChangeEntry, ChangeField, LineStatus, Order, OrderLine, Upload
+from bakery.models import Change, ChangeEntry, Order, OrderLine, PendingReview, Upload
 from bakery.web.deps import get_session, templates
 
 router = APIRouter()
@@ -34,28 +33,8 @@ def detail(
             joinedload(Change.upload).joinedload(Upload.uploader),
             joinedload(Change.upload).joinedload(Upload.submitted_by),
             selectinload(Change.entries).joinedload(ChangeEntry.product),
+            joinedload(Change.review).joinedload(PendingReview.decided_by),
         )
         .order_by(Change.id)
     ).all()
-    return templates.TemplateResponse(
-        request,
-        "order_detail.html",
-        {
-            "order": order,
-            "changes": changes,
-            "kind_labels": KIND_LABELS,
-            "field_labels": FIELD_LABELS,
-            "show_value": _show_value,
-        },
-    )
-
-
-def _show_value(field: ChangeField, text: str | None) -> str:
-    """A logged value as the page shows it."""
-    if text is None:
-        return ""
-    if field in DATE_FIELDS:
-        return text.replace("-", "/")
-    if field is ChangeField.STATUS:
-        return "取消" if text == LineStatus.CANCELLED else "（空白）"
-    return text
+    return templates.TemplateResponse(request, "order_detail.html", {"order": order, "changes": changes})

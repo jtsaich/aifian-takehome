@@ -38,7 +38,12 @@
   <h3>
     {{ upload.received_at|taipei }}　
     {% if change.is_new_order %}新單{% else %}{% for k in change.change_kinds %}{{ kind_labels[k] }}{% if not loop.last %}＋{% endif %}{% endfor %}{% endif %}
-    {% if change.decision == "held" %}<span class="error">（未套用，這張單先照舊，待總部確認）</span>{% endif %}
+    {% if change.review %}{% set r = change.review %}
+    {% if r.status == "pending" %}<span class="error">（未套用，這張單先照舊，待總部確認）</span>
+    {% elif r.status == "confirmed" %}<span class="review-outcome">（總部已確認並套用：{{ r.decided_by.display_name }}，{{ r.decided_at|taipei }}）</span>
+    {% elif r.status == "rejected" %}<span class="error">（總部已退回，未套用：{{ r.decided_by.display_name }}，{{ r.decided_at|taipei }}）</span>
+    {% else %}<span class="muted">（未套用：總部處理前，門市又傳了別的內容）</span>{% endif %}
+    {% endif %}
   </h3>
   <p>
     <a href="/uploads/{{ upload.id }}">上傳 #{{ upload.id }}</a>　{{ upload.filename }}　

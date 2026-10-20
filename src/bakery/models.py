@@ -70,8 +70,35 @@ class ChangeDecision(StrEnum):
     """What happened to a change when its 上傳 was processed. Decided by bakery.changes.decide."""
 
     APPLIED = "applied"
-    HELD = "held"  # not applied: the order keeps its earlier content
+    HELD = "held"  # 待確認: not applied; the order keeps its earlier content until 總部 confirms
 
+
+class ReviewStatus(StrEnum):
+    """Where a 待確認 stands. Only 總部人員 move it out of pending (bakery.reviews)."""
+
+    PENDING = "pending"  # waiting for 總部
+    CONFIRMED = "confirmed"  # applied to the order
+    REJECTED = "rejected"  # 退回: the order keeps its earlier content
+    # The 門市 sent this 喜餅訂單 again with other content (or back as it is on record)
+    # before 總部 decided: the later file is what counts, nothing left to decide.
+    SUPERSEDED = "superseded"
+
+
+DEFAULT_CUTOFF_DAYS = 7
+
+
+class Settings(Base):
+    """What 總部 tunes on the web. A single row (id 1), seeded with the defaults."""
+
+    __tablename__ = "settings"
+    __table_args__ = (
+        CheckConstraint("id = 1", name="single_row"),
+        CheckConstraint("cutoff_days >= 0", name="cutoff_days_not_negative"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # 修改截止點: 取貨日前 N 天 (bakery.changes.past_cutoff).
+    cutoff_days: Mapped[int] = mapped_column(default=DEFAULT_CUTOFF_DAYS)
 
 
 class Role(StrEnum):
@@ -314,6 +341,8 @@ class Change(Base):
     upload: Mapped[Upload] = relationship()
     order: Mapped[Order] = relationship()
     entries: Mapped[list[ChangeEntry]] = relationship(order_by="ChangeEntry.id")
+    # Set for a HELD change: its 待確認.
+    review: Mapped[PendingReview | None] = relationship(back_populates="change")
 
     @property
     def change_kinds(self) -> tuple[ChangeKind, ...]:
@@ -343,3 +372,36 @@ class ChangeEntry(Base):
     new_value: Mapped[str | None] = mapped_column(Text)
 
     product: Mapped[Product | None] = relationship()
+
+
+class PendingReview(Base):
+    """待確認: a HELD Change waiting for (or decided by) a 總部人員.
+
+    The Change itself never changes (append-only); its fate is recorded here. Confirming
+    applies the change's entries to the order; 退回 leaves the order as it was."""
+
+    __tablename__ = "pending_reviews"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    change_id: Mapped[int] = mapped_column(ForeignKey("changes.id"), unique=True)
+    status: Mapped[ReviewStatus] = mapped_column(
+        Enum(
+            ReviewStatus,
+            native_enum=False,
+            create_constraint=True,
+            length=16,
+            values_callable=lambda e: [m.value for m in e],
+            name="review_status",
+        ),
+        default=ReviewStatus.PENDING,
+        index=True,
+    )
+    # Who confirmed or rejected it, and when (NULL while pending, and when superseded).
+    decided_by_id: Mapped[int | None] = mapped_column(ForeignKey("accounts.id"))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # The 門市's next upload, whose reply told them the decision (no push). NULL until then.
+    reported_upload_id: Mapped[int | None] = mapped_column(ForeignKey("uploads.id"))
+
+    change: Mapped[Change] = relationship(back_populates="review")
+    decided_by: Mapped[Account | None] = relationship()
+    reported_upload: Mapped[Upload | None] = relationship()

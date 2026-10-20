@@ -103,17 +103,36 @@ def detect_change(order: Order, parsed: ParsedOrder) -> Detected | None:
     return Detected(tuple(k for k in ChangeKind if k in kinds), tuple(diffs))
 
 
-def decide(detected: Detected, *, historical: bool = False) -> ChangeDecision:
-    """The one rule for whether a change applies now or waits for 總部.
+def past_cutoff(pickup_on: date, today: date, cutoff_days: int) -> bool:
+    """修改截止點: 取貨日前 N 天. That day is the last on which a change applies directly;
+    from the next day on (fewer than N days left before 取貨日) it is past the cutoff.
+    With N = 7 and 取貨日 11/28: sent on 11/21 applies, sent on 11/22 waits for 總部."""
+    return (pickup_on - today).days < cutoff_days
 
-    疑似單號重複使用 never applies on its own: it may be two different orders
-    sharing one 單號, and applying would overwrite the first customer's order.
-    A 歷史資料匯入 (`historical`) always applies: it records what already happened,
-    affects no production, and nothing in it waits for 總部.
+
+def decide(
+    detected: Detected, order: Order, *, today: date, cutoff_days: int, historical: bool = False
+) -> ChangeDecision:
+    """The one rule for whether a change to `order` applies now or waits for 總部 (待確認).
+
+    - A 歷史資料匯入 (`historical`) always applies: it records what already happened,
+      affects no production, and nothing in it waits for 總部.
+    - 疑似單號重複使用 never applies on its own, whatever the date: it may be two
+      different orders sharing one 單號, and applying would overwrite the first one.
+    - A change that affects production waits once past the 修改截止點 of the earlier of
+      the 取貨日 on record and the new one: postponing a near 取貨日 and pulling a far
+      one near both wait. The whole 修改 waits, 資料更正 parts included; a change that
+      is only 資料更正 always applies.
     """
     if historical:
         return ChangeDecision.APPLIED
     if ChangeKind.SUSPECTED_REUSE in detected.kinds:
+        return ChangeDecision.HELD
+    if PRODUCTION_KINDS.isdisjoint(detected.kinds):
+        return ChangeDecision.APPLIED
+    pickups = [order.pickup_on]
+    pickups += [date.fromisoformat(d.new) for d in detected.diffs if d.field is ChangeField.PICKUP_ON]
+    if past_cutoff(min(pickups), today, cutoff_days):
         return ChangeDecision.HELD
     return ChangeDecision.APPLIED
 
