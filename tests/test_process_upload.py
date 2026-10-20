@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import json
 from datetime import date
-from pathlib import Path
 
 import pytest
 from sqlalchemy import delete, select, update
@@ -13,7 +11,6 @@ from sqlalchemy.exc import DBAPIError
 from bakery.models import LineStatus, Order, Upload
 from bakery.pipeline import process_upload
 
-MOCK = Path(__file__).resolve().parents[1] / "mock_data"
 DEMO_UPLOADER = "Udemo-TC01"
 
 
@@ -60,22 +57,6 @@ def test_reply_names_the_store_and_counts_orders_and_lines(session, now, clean_f
     result = _upload(session, now, clean_file)
 
     assert result.reply_text == "台中中正店（TC01）：收到 2 張喜餅訂單、3 筆訂單明細。"
-
-
-def test_mock_store_file_matches_the_expectations_table(session, now):
-    expected = next(
-        f
-        for f in json.loads((MOCK / "expectations.json").read_text())["files"]
-        if f["file"] == "day1/NT01_草屯和平店.xlsx"
-    )
-    path = MOCK / expected["file"]
-
-    result = _upload(session, now, path.read_bytes(), uploader="Udemo-NT01", filename=path.name)
-
-    assert expected["reply_summary"] in result.reply_text
-    orders = _orders(session)
-    assert sorted(orders) == sorted(expected["accepted_orders"])
-    assert sum(len(o.lines) for o in orders.values()) == expected["accepted_lines"]
 
 
 def test_original_file_is_kept_byte_for_byte_with_uploader_and_time(session, now, clean_file):

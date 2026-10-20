@@ -1,20 +1,100 @@
-"""Structured result of processing one 上傳: what reply text is rendered from."""
+"""Structured result of processing one 上傳: what reply text is rendered from.
+
+Findings carry facts (kind, location, values), never wording: `bakery.reply`
+is the one place that turns them into 繁中 text.
+"""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from enum import StrEnum
+from typing import Any
+
+
+class Severity(StrEnum):
+    ERROR = "error"  # the row (or the whole 喜餅訂單) is not accepted
+    WARNING = "warning"  # accepted, but pointed out
+    INFO = "info"  # file-level notice, e.g. a skipped sheet
+
+
+class FindingKind(StrEnum):
+    # Errors: the row is dropped.
+    MISSING_ORDER_NO = "missing_order_no"
+    MISSING_DATE = "missing_date"  # detail: column
+    UNPARSEABLE_DATE = "unparseable_date"  # detail: column, value
+    INVALID_QUANTITY = "invalid_quantity"  # detail: value (None when blank)
+    UNKNOWN_PRODUCT = "unknown_product"  # detail: value (None when blank)
+    INVALID_STATUS = "invalid_status"  # detail: value
+    # Errors: the whole 喜餅訂單 is dropped.
+    INCONSISTENT_ORDER_FIELDS = "inconsistent_order_fields"  # detail: diffs ((column, values), ...)
+    DUPLICATE_PRODUCT = "duplicate_product"  # detail: product
+    # Warnings: accepted.
+    PICKUP_IN_PAST = "pickup_in_past"  # detail: pickup_on
+    PICKUP_TOO_SOON = "pickup_too_soon"  # detail: pickup_on, days
+    QUANTITY_OVER_THRESHOLD = "quantity_over_threshold"  # detail: product, quantity
+    PHONE_FORMAT = "phone_format"  # detail: phone, problem (PhoneProblem)
+    DUPLICATE_PHONE_PICKUP = "duplicate_phone_pickup"  # detail: stored_order_nos
+    # Info.
+    SKIPPED_SHEET = "skipped_sheet"  # detail: reason (SkipReason), other_store_code
+
+
+class SkipReason(StrEnum):
+    NOT_TEMPLATE = "not_template"  # headers don't match the 範本
+    OTHER_STORE = "other_store"  # a 範本 sheet whose 門市代碼 differs from the file's
+
+
+@dataclass(frozen=True)
+class SheetRows:
+    """Where a finding points: a sheet and its Excel row numbers (empty = whole sheet)."""
+
+    sheet: str
+    rows: tuple[int, ...] = ()
+
+
+@dataclass(frozen=True)
+class Finding:
+    kind: FindingKind
+    severity: Severity
+    locations: tuple[SheetRows, ...]
+    order_nos: tuple[str, ...] = ()
+    detail: Mapping[str, Any] = field(default_factory=dict)
+
+
+class FailureKind(StrEnum):
+    """The whole file is refused; nothing in it is stored except the original."""
+
+    UNREADABLE_FILE = "unreadable_file"
+    NO_ORDER_SHEET = "no_order_sheet"
+    MISSING_STORE_CODE = "missing_store_code"
+    UNKNOWN_STORE = "unknown_store"  # detail: store_code
+    INTERNAL_ERROR = "internal_error"
+
+
+@dataclass(frozen=True)
+class Failure:
+    kind: FailureKind
+    detail: Mapping[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
 class UploadOutcome:
-    store_code: str
-    store_name: str
+    store_code: str | None
+    store_name: str | None
     order_count: int  # 喜餅訂單 received in this file
     line_count: int  # 訂單明細 received in this file
+    rejected_rows: tuple[SheetRows, ...] = ()  # rows not accepted, per sheet
+    findings: tuple[Finding, ...] = ()
+    failure: Failure | None = None
+
+    @property
+    def rejected_row_count(self) -> int:
+        return sum(len(s.rows) for s in self.rejected_rows)
 
 
 @dataclass(frozen=True)
 class ProcessResult:
     upload_id: int
-    reply_text: str  # exactly what the LINE reply says
+    reply_text: str  # exactly what the LINE reply says (capped at the LINE limit)
+    report_text: str  # the full reply, every finding listed; shown on the web
     outcome: UploadOutcome

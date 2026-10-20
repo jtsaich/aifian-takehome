@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}上傳 #{{ upload.id }}{% endblock %}
+{% block content %}
+<p>{{ upload.received_at|taipei }}　{{ upload.uploader.display_name or upload.uploader.line_user_id }}　{{ upload.store.name if upload.store else "" }}　{{ upload.filename }}　<a href="/uploads/{{ upload.id }}/original">下載原檔</a></p>
+<h2>完整回覆</h2>
+<div class="reply">{{ upload.report_text or upload.reply_text or "" }}</div>
+{% if upload.report_text and upload.report_text != upload.reply_text %}
+<h2>LINE 群組收到的回覆（超過 LINE 字數上限，只列前面幾項）</h2>
+<div class="reply">{{ upload.reply_text }}</div>
+{% endif %}
+{% endblock %}

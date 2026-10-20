@@ -12,7 +12,7 @@
       <td>{{ u.received_at|taipei }}</td>
       <td>{{ u.uploader.display_name or u.uploader.line_user_id }}</td>
       <td>{{ u.store.name if u.store else "" }}</td>
-      <td>{{ u.filename }}</td>
+      <td><a href="/uploads/{{ u.id }}">{{ u.filename }}</a></td>
       <td class="reply-cell">{{ u.reply_text or "" }}</td>
       <td><a href="/uploads/{{ u.id }}/original">下載</a>（{{ (u.size_bytes / 1024)|round(1) }} KB）</td>
     </tr>

@@ -98,7 +98,9 @@ class Upload(Base):
     sha256: Mapped[str] = mapped_column(String(64))
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     store_code: Mapped[str | None] = mapped_column(ForeignKey("stores.code"))
-    reply_text: Mapped[str | None] = mapped_column(Text)
+    reply_text: Mapped[str | None] = mapped_column(Text)  # what the LINE reply says
+    # The full reply with every finding; the LINE reply links here when it is cut short.
+    report_text: Mapped[str | None] = mapped_column(Text)
 
     uploader: Mapped[Uploader] = relationship()
     store: Mapped[Store | None] = relationship()

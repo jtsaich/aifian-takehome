@@ -7,16 +7,22 @@ stored data and the reply text are identical whichever way a file arrives.
 from __future__ import annotations
 
 import hashlib
+import logging
+import os
 from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from bakery.checks import StoredOrder, order_warnings
+from bakery.clock import today_taipei
 from bakery.merge import merge_orders
-from bakery.models import Product, ProductAlias, Store, Upload, Uploader
-from bakery.outcome import ProcessResult, UploadOutcome
-from bakery.parsing import ProductLookup, parse_upload
+from bakery.models import LineStatus, Order, OrderLine, Product, ProductAlias, Store, Upload, Uploader
+from bakery.outcome import Failure, FailureKind, ProcessResult, UploadOutcome
+from bakery.parsing import FileRejected, ParsedFile, ProductLookup, ProductRef, parse_upload, sort_findings
 from bakery.reply import render_reply
+
+log = logging.getLogger(__name__)
 
 
 def process_upload(
@@ -27,10 +33,12 @@ def process_upload(
     file_bytes: bytes,
     now: datetime,
 ) -> ProcessResult:
-    """Keep the original, merge its orders, and return the reply for the 傳檔者.
+    """Keep the original, merge its accepted orders, and return the reply for the 傳檔者.
 
-    The original is committed before parsing starts, so it survives a failure
-    further down. `now` must be timezone-aware.
+    Never raises on bad input: an unreadable file, an unknown 門市代碼 or an
+    unexpected processing error becomes a failure the reply explains. The
+    original is committed before parsing starts, so it survives any of these.
+    `now` must be timezone-aware.
     """
     if now.tzinfo is None:
         raise ValueError("now must be timezone-aware")
@@ -45,21 +53,48 @@ def process_upload(
     session.add(upload)
     session.commit()
 
-    parsed = parse_upload(file_bytes, _product_lookup(session))
-    store = session.get_one(Store, parsed.store_code)
-    merge_orders(session, store_code=store.code, orders=parsed.orders)
+    try:
+        outcome = _process(session, file_bytes, now)
+    except FileRejected as rejected:
+        session.rollback()
+        outcome = _failed(rejected.failure)
+    except Exception as exc:
+        # Only the type: messages from parsing libraries can quote cell content (names, phones).
+        log.error("processing upload %s failed: %s", upload.id, type(exc).__name__)
+        session.rollback()
+        outcome = _failed(Failure(FailureKind.INTERNAL_ERROR))
 
-    outcome = UploadOutcome(
+    reply = render_reply(outcome, report_url=_report_url(upload.id))
+    upload.store_code = outcome.store_code
+    upload.reply_text = reply.text
+    upload.report_text = reply.report
+    session.commit()
+    return ProcessResult(
+        upload_id=upload.id, reply_text=reply.text, report_text=reply.report, outcome=outcome
+    )
+
+
+def _process(session: Session, file_bytes: bytes, now: datetime) -> UploadOutcome:
+    today = today_taipei(now)
+    parsed = parse_upload(file_bytes, _product_lookup(session), today)
+    store = session.get(Store, parsed.store_code)
+    if store is None:
+        raise FileRejected(Failure(FailureKind.UNKNOWN_STORE, {"store_code": parsed.store_code}))
+
+    warnings = order_warnings(parsed.orders, today, _stored_orders(session, store.code, parsed))
+    merge_orders(session, store_code=store.code, orders=parsed.orders)
+    return UploadOutcome(
         store_code=store.code,
         store_name=store.name,
         order_count=len(parsed.orders),
         line_count=parsed.line_count,
+        rejected_rows=parsed.rejected_rows,
+        findings=sort_findings([*parsed.findings, *warnings], parsed.sheet_names),
     )
-    reply_text = render_reply(outcome)
-    upload.store_code = store.code
-    upload.reply_text = reply_text
-    session.commit()
-    return ProcessResult(upload_id=upload.id, reply_text=reply_text, outcome=outcome)
+
+
+def _failed(failure: Failure) -> UploadOutcome:
+    return UploadOutcome(store_code=None, store_name=None, order_count=0, line_count=0, failure=failure)
 
 
 def _uploader(session: Session, line_user_id: str) -> Uploader:
@@ -72,6 +107,28 @@ def _uploader(session: Session, line_user_id: str) -> Uploader:
 
 
 def _product_lookup(session: Session) -> ProductLookup:
-    lookup = {p.name: p.code for p in session.scalars(select(Product))}
-    lookup.update({a.alias: a.product_code for a in session.scalars(select(ProductAlias))})
+    products = {p.code: ProductRef(p.code, p.name) for p in session.scalars(select(Product))}
+    lookup = {ref.name: ref for ref in products.values()}
+    lookup.update({a.alias: products[a.product_code] for a in session.scalars(select(ProductAlias))})
     return lookup
+
+
+def _stored_orders(session: Session, store_code: str, parsed: ParsedFile) -> list[StoredOrder]:
+    """The store's live orders on the file's 取貨日, for the duplicate-phone check."""
+    pickups = {o.pickup_on for o in parsed.orders}
+    if not pickups:
+        return []
+    rows = session.execute(
+        select(Order.order_no, Order.phone, Order.pickup_on).where(
+            Order.store_code == store_code,
+            Order.pickup_on.in_(pickups),
+            Order.lines.any(OrderLine.status == LineStatus.ACTIVE),
+        )
+    )
+    return [StoredOrder(order_no, phone, pickup_on) for order_no, phone, pickup_on in rows]
+
+
+def _report_url(upload_id: int) -> str:
+    """Absolute when PUBLIC_BASE_URL is set (LINE needs a full link), else a site path."""
+    base = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
+    return f"{base}/uploads/{upload_id}"
