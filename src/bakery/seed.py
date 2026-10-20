@@ -8,12 +8,13 @@ from __future__ import annotations
 
 from functools import cache
 
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from bakery.accounts import hash_password
 from bakery.catalog import PRODUCTS, STORES
-from bakery.models import Account, Product, ProductAlias, Role, Store, Uploader
+from bakery.models import Account, BindingStatus, Product, ProductAlias, Role, Store, StoreBinding, Uploader
 
 # (line_user_id, display_name): one shared store account per 門市, plus a personal
 # account so the demo shows a 門市 with more than one 傳檔者.
@@ -21,6 +22,9 @@ DEMO_UPLOADERS: tuple[tuple[str, str], ...] = (
     *((f"Udemo-{s.code}", f"{s.name} 門市帳號") for s in STORES),
     ("Udemo-TC01-meiling", "美玲（台中中正店）"),
 )
+# The shared store accounts start out bound to their 門市. 美玲 does not, so her first
+# upload shows the 「已記錄您為…（待總部確認）」 flow.
+DEMO_BINDINGS: dict[str, str] = {f"Udemo-{s.code}": s.code for s in STORES}
 
 # (username, display_name, role): one account per 總部人員, one shared 廚房 account and
 # one 老闆 account. Every demo account uses DEMO_PASSWORD; both are listed in README.
@@ -48,6 +52,21 @@ def seed_reference_data(session: Session) -> None:
         insert(Uploader)
         .values(
             [{"line_user_id": uid, "display_name": name, "is_demo": True} for uid, name in DEMO_UPLOADERS]
+        )
+        .on_conflict_do_nothing()
+    )
+    uploader_ids = dict(
+        session.execute(
+            select(Uploader.line_user_id, Uploader.id).where(Uploader.line_user_id.in_(DEMO_BINDINGS))
+        ).all()
+    )
+    session.execute(
+        insert(StoreBinding)
+        .values(
+            [
+                {"uploader_id": uploader_ids[uid], "store_code": code, "status": BindingStatus.CONFIRMED}
+                for uid, code in DEMO_BINDINGS.items()
+            ]
         )
         .on_conflict_do_nothing()
     )

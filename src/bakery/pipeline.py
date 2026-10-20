@@ -9,11 +9,14 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import traceback
 from datetime import datetime
+from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from bakery.binding import uploader_notice
 from bakery.checks import StoredOrder, order_warnings
 from bakery.clock import today_taipei
 from bakery.merge import merge_orders
@@ -28,7 +31,7 @@ log = logging.getLogger(__name__)
 def process_upload(
     session: Session,
     *,
-    uploader_line_id: str,
+    uploader_line_id: str | None,
     filename: str,
     file_bytes: bytes,
     now: datetime,
@@ -39,13 +42,16 @@ def process_upload(
     Never raises on bad input: an unreadable file, an unknown 門市代碼 or an
     unexpected processing error becomes a failure the reply explains. The
     original is committed before parsing starts, so it survives any of these.
+    `uploader_line_id` is None when LINE did not say which account sent the file.
+    The 門市綁定 (bakery.binding) is checked here, so every source replies alike.
     `now` must be timezone-aware. `submitted_by_id` is the web account that
     sent the file from the 模擬群組上傳 page; None for LINE.
     """
     if now.tzinfo is None:
         raise ValueError("now must be timezone-aware")
+    uploader = _uploader(session, uploader_line_id) if uploader_line_id else None
     upload = Upload(
-        uploader=_uploader(session, uploader_line_id),
+        uploader=uploader,
         submitted_by_id=submitted_by_id,
         filename=filename,
         content=file_bytes,
@@ -57,14 +63,14 @@ def process_upload(
     session.commit()
 
     try:
-        outcome = _process(session, file_bytes, now)
+        outcome = _process(session, uploader, file_bytes, now)
     except FileRejected as rejected:
         session.rollback()
         outcome = _failed(rejected.failure)
     except Exception as exc:
-        # Only the type: messages from parsing libraries can quote cell content (names, phones).
-        log.error("processing upload %s failed: %s", upload.id, type(exc).__name__)
         session.rollback()
+        upload.failure_reason = _failure_reason(exc)
+        log.error("processing upload %s failed: %s", upload.id, upload.failure_reason)
         outcome = _failed(Failure(FailureKind.INTERNAL_ERROR))
 
     reply = render_reply(outcome, report_url=_report_url(upload.id))
@@ -77,7 +83,7 @@ def process_upload(
     )
 
 
-def _process(session: Session, file_bytes: bytes, now: datetime) -> UploadOutcome:
+def _process(session: Session, uploader: Uploader | None, file_bytes: bytes, now: datetime) -> UploadOutcome:
     today = today_taipei(now)
     parsed = parse_upload(file_bytes, _product_lookup(session), today)
     store = session.get(Store, parsed.store_code)
@@ -93,7 +99,18 @@ def _process(session: Session, file_bytes: bytes, now: datetime) -> UploadOutcom
         line_count=parsed.line_count,
         rejected_rows=parsed.rejected_rows,
         findings=sort_findings([*parsed.findings, *warnings], parsed.sheet_names),
+        uploader_notice=uploader_notice(session, uploader, store),
     )
+
+
+def _failure_reason(exc: Exception) -> str:
+    """The exception type and the innermost place in our code it passed: never its
+    message, which can quote cell content (names, phones)."""
+    frames = [f for f in traceback.extract_tb(exc.__traceback__) if "bakery" in Path(f.filename).parts]
+    if not frames:
+        return type(exc).__name__
+    where = frames[-1]
+    return f"{type(exc).__name__}（{Path(where.filename).name}:{where.lineno} {where.name}）"
 
 
 def _failed(failure: Failure) -> UploadOutcome:

@@ -21,17 +21,19 @@ from bakery.web.auth import DEV_SESSION_SECRET, SESSION_COOKIE
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 # Routes anyone may reach without logging in. Adding a public route means adding it
-# here on purpose (the LINE webhook will: it checks LINE's signature instead).
-PUBLIC = {("GET", "/"), ("GET", "/login"), ("POST", "/login"), ("POST", "/logout")}
+# here on purpose (the LINE webhook checks LINE's signature instead: tests/test_line_webhook.py).
+PUBLIC = {("GET", "/"), ("GET", "/login"), ("POST", "/login"), ("POST", "/logout"), ("POST", "/line/webhook")}
 
 # Every logged-in page, as registered, with the demo accounts that may open it
 # (ticket 05: 廚房 sees only 總表 and 廚房彙總; 總部人員 and 老闆 see everything here).
+# Confirming a 門市綁定 (POST /bindings) is for 總部人員 only: tests/test_store_binding.py.
 PAGES: dict[str, set[str]] = {
     "/orders": {"hq-lin", "hq-chen", "kitchen", "owner"},
     "/uploads": {"hq-lin", "hq-chen", "owner"},
     "/uploads/{upload_id}": {"hq-lin", "hq-chen", "owner"},
     "/uploads/{upload_id}/original": {"hq-lin", "hq-chen", "owner"},
     "/demo/upload": {"hq-lin", "hq-chen", "owner"},
+    "/bindings": {"hq-lin", "hq-chen", "owner"},
     "/customers": {"hq-lin", "hq-chen", "owner"},
     "/customers/{order_id}": {"hq-lin", "hq-chen", "owner"},
     "/customers.xlsx": {"hq-lin", "hq-chen", "owner"},

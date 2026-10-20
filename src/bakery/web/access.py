@@ -16,6 +16,8 @@ class Area(StrEnum):
     KITCHEN_SUMMARY = "kitchen_summary"  # 廚房彙總
     OPERATIONS = "operations"  # 上傳紀錄, 模擬群組上傳, 待處理, 品項 and 門市綁定 upkeep
     CUSTOMERS = "customers"  # 客人資料
+    # 總部人員's own decisions: confirming 門市綁定. The 老闆 sees them but doesn't make them.
+    CONFIRMATIONS = "confirmations"
 
 
 _EVERYONE = frozenset(Role)
@@ -26,6 +28,7 @@ ACCESS: dict[Area, frozenset[Role]] = {
     Area.KITCHEN_SUMMARY: _EVERYONE,
     Area.OPERATIONS: _HQ_AND_OWNER,
     Area.CUSTOMERS: _HQ_AND_OWNER,
+    Area.CONFIRMATIONS: frozenset({Role.HQ}),
 }
 
 

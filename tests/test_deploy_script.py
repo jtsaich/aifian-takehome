@@ -39,6 +39,24 @@ def test_deploys_service_to_taiwan_scaling_to_zero_with_secret_references() -> N
     assert "k" * 64 not in result.stdout + result.stderr
 
 
+def test_line_channel_keys_are_mounted_once_given() -> None:
+    result = deploy(
+        GCP_PROJECT="demo-proj",
+        DATABASE_URL=NEON_URL,
+        LINE_CHANNEL_SECRET="line-secret-value",
+        LINE_CHANNEL_ACCESS_TOKEN="line-token-value",
+    )
+
+    assert result.returncode == 0, result.stderr
+    service = command_line(result.stdout, "run deploy")
+    assert (
+        "LINE_CHANNEL_SECRET=bakery-line-channel-secret:latest,"
+        "LINE_CHANNEL_ACCESS_TOKEN=bakery-line-channel-access-token:latest"
+    ) in service
+    assert "line-secret-value" not in result.stdout + result.stderr
+    assert "line-token-value" not in result.stdout + result.stderr
+
+
 def test_migrates_with_a_job_before_the_service_is_deployed() -> None:
     result = deploy(GCP_PROJECT="demo-proj", DATABASE_URL=NEON_URL)
 

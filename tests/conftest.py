@@ -46,18 +46,22 @@ def engine(database_url: str) -> Iterator[Engine]:
     eng.dispose()
 
 
-@pytest.fixture
-def session_factory(engine: Engine) -> sessionmaker[Session]:
+def reset_database(engine: Engine) -> None:
+    """Empty every table and reseed: the state each test starts from."""
     tables = ", ".join(t.name for t in Base.metadata.sorted_tables)
     with engine.begin() as conn:
         # TRUNCATE bypasses the row-level append-only trigger on uploads.
         conn.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
-    factory = sessionmaker(engine, expire_on_commit=False)
-    with factory() as s:
+    with Session(engine) as s:
         seed_reference_data(s)
         seed_demo_accounts(s)
         s.commit()
-    return factory
+
+
+@pytest.fixture
+def session_factory(engine: Engine) -> sessionmaker[Session]:
+    reset_database(engine)
+    return sessionmaker(engine, expire_on_commit=False)
 
 
 @pytest.fixture

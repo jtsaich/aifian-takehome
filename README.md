@@ -13,8 +13,9 @@ docker compose up --build
 開 <http://localhost:8000>，先用下面的 demo 帳號登入（門市沒有帳號，也不需要登入）：
 
 - 總表：`/orders`，可以依門市和取貨日篩選。
-- 上傳紀錄：`/uploads`，每一份原檔都可以下載，也記錄是從 LINE 還是由哪個帳號在模擬頁送出的。
-- 模擬群組上傳：`/demo/upload`（demo 用，門市不會看到）。選一位傳檔者、上傳 `mock_data/` 裡的檔案，畫面上的回覆就是 LINE 群組會收到的內容。
+- 上傳紀錄：`/uploads`，每一份原檔都可以下載，也記錄是從 LINE 還是由哪個帳號在模擬頁送出的。處理失敗的上傳會標「處理失敗」並留下原因。
+- 門市綁定：`/bindings`。傳檔者第一次傳範本檔時，系統依檔案裡的門市代碼先記錄他屬於哪家門市（回覆第一行「已記錄您為 ○○店（待總部確認）」），總部人員在這頁確認或改成正確的門市。已綁定的傳檔者傳了別家門市的檔案，照常處理，但回覆會提醒。
+- 模擬群組上傳：`/demo/upload`（demo 用，門市不會看到）。選一位傳檔者、上傳 `mock_data/` 裡的檔案，畫面上的回覆就是 LINE 群組會收到的內容（同一個 `process_upload`，門市綁定的檢查也一樣）。六個「門市帳號」預先綁好各自的門市；「美玲」還沒綁定，用她傳第一次就會看到待確認的流程。
 - 客人資料：`/customers`（總部、老闆）。一支正規化後的電話算一位客人：訂單數、總盒數（不含取消）、第一次和最近一次接單日、下過單的門市、訂購人姓名（同一支電話有不同姓名會標出來），點進去看每一張喜餅訂單；可下載 `/customers.xlsx`。不是會員，頁面上沒有發訊息的功能；網址用單的 id，不放電話。客人資料每次都從訂單即時算出，不另外存。
 
 ## Demo 帳號
@@ -23,10 +24,10 @@ docker compose up --build
 
 | 帳號 | 誰 | 看得到 |
 |---|---|---|
-| `hq-lin` | 總部人員 林雅文 | 全部營運頁面：總表、上傳紀錄、模擬群組上傳、客人資料 |
+| `hq-lin` | 總部人員 林雅文 | 全部營運頁面：總表、上傳紀錄、門市綁定（可確認）、模擬群組上傳、客人資料 |
 | `hq-chen` | 總部人員 陳志明 | 同上（總部每人一個帳號，紀錄裡才分得出是誰做的） |
 | `kitchen` | 中央廚房（共用） | 只有總表和廚房彙總 |
-| `owner` | 老闆 | 全部頁面 |
+| `owner` | 老闆 | 全部頁面（門市綁定只能看，確認由總部人員做） |
 
 密碼只存 argon2 雜湊。登入狀態是簽章過的 cookie，金鑰來自環境變數 `SESSION_SECRET`；本機沒設定時用開發用的預設值。部署時設 `BAKERY_ENV=production`，這時沒有設定 `SESSION_SECRET`（或少於 32 字元、或用的是預設值）app 會拒絕啟動，cookie 也只走 HTTPS。
 
@@ -109,9 +110,26 @@ scripts/deploy.sh
 [5] <https://cloud.google.com/build/pricing>　
 [6] <https://developers.line.biz/en/docs/messaging-api/pricing/>
 
-### 給 LINE webhook（ticket 12）的注意事項
+### LINE webhook
 
-service 用 `--cpu-throttling`（request-based 計費）：**HTTP 回應送出後 CPU 就被節流**，背景工作可能跑不完。所以 webhook 必須在回應 LINE 之前做完整個流程（下載檔案、`process_upload`、用 reply token 回覆），再回 200；不要用 FastAPI `BackgroundTasks` 或先回 200 再處理。reply token 本來就只有 1 分鐘有效，同步處理也剛好配合。service 的請求逾時設為 60 秒。
+service 用 `--cpu-throttling`（request-based 計費）：**HTTP 回應送出後 CPU 就被節流**，背景工作可能跑不完。所以 webhook（`POST /line/webhook`）在回應 LINE 之前做完整個流程：驗簽章、依 `webhookEventId` 去重、下載檔案、`process_upload`、用 reply token 回覆，最後才回 200；不用 `BackgroundTasks`，也不先回 200 再處理。reply token 本來就只有 1 分鐘有效，同步處理也剛好配合。service 的請求逾時設為 60 秒。
+
+- 只回應範本檔（有「門市代碼」「範本版本」兩個儲存格的 .xlsx）；群組裡傳的其他檔案不回應、也不保存。
+- 檔案下載失敗時回 500，讓 LINE 重送（要在 console 開 webhook redelivery）；其他情況一律回 200。
+- 只用 reply，不用 push。log 只記事件、訊息、上傳的編號，不記檔名、儲存格內容或 LINE 名稱。
+
+接上 LINE OA（建好 Messaging API channel 和 demo 群組之後做一次）：
+
+1. LINE Developers Console → 該 provider 的 Messaging API channel：
+   - *Basic settings* 的 **Channel secret** → 環境變數 `LINE_CHANNEL_SECRET`。
+   - *Messaging API* 分頁發一組 **Channel access token (long-lived)** → `LINE_CHANNEL_ACCESS_TOKEN`。
+2. 帶著這兩個值重跑部署（存進 Secret Manager 的 `bakery-line-channel-secret`、`bakery-line-channel-access-token`，之後部署不必再給）：
+   `GCP_PROJECT=<project-id> LINE_CHANNEL_SECRET=... LINE_CHANNEL_ACCESS_TOKEN=... scripts/deploy.sh`。沒設定之前 webhook 一律回 503，其他頁面照常運作。
+3. *Messaging API* 分頁：**Webhook URL** 填 `<服務網址>/line/webhook`，按 *Verify*（應顯示成功），打開 **Use webhook** 和 **Webhook redelivery**。
+4. LINE Official Account Manager → 設定 → 回應設定：關掉**自動回應訊息**和**加入好友的歡迎訊息**（不然 OA 會自己插話）；帳號設定裡打開**允許加入群組**。
+5. 把 OA 邀進群組（一個群組只能有一個 bot），在群組裡傳一份 `mock_data/day1/` 的檔案，1 分鐘內應收到跟模擬群組上傳頁一樣的回覆；第一次傳檔的帳號回覆第一行是「已記錄您為 ○○店（待總部確認）」，到 `/bindings` 確認。
+
+本機試 webhook：設好上面兩個環境變數，用 `bakery.line.sign(secret, body)` 算 `X-Line-Signature` 送假事件即可；測試（`tests/test_line_webhook.py`）就是這樣做，LINE API 用 httpx 的 `MockTransport` 替代。
 
 ### Neon 連線為什麼用直連
 

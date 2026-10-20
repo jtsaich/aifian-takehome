@@ -101,7 +101,7 @@ class ProductAlias(Base):
 
 
 class Uploader(Base):
-    """傳檔者: a LINE account that sends files. Store binding comes later (StoreBinding)."""
+    """傳檔者: a LINE account that sends files. Which 門市 it belongs to: StoreBinding."""
 
     __tablename__ = "uploaders"
 
@@ -112,16 +112,66 @@ class Uploader(Base):
     is_demo: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+    binding: Mapped[StoreBinding | None] = relationship(back_populates="uploader")
+
+
+class BindingStatus(StrEnum):
+    PENDING = "pending"  # recorded from the 傳檔者's first upload; 總部 has not confirmed yet
+    CONFIRMED = "confirmed"
+
+
+class StoreBinding(Base):
+    """門市綁定: the one 門市 a 傳檔者 sends files for (a 門市 may have many 傳檔者).
+
+    Recorded as pending from the first upload whose 門市 is known; a 總部人員
+    confirms it, correcting the 門市 if the guess was wrong."""
+
+    __tablename__ = "store_bindings"
+
+    uploader_id: Mapped[int] = mapped_column(ForeignKey("uploaders.id"), primary_key=True)
+    store_code: Mapped[str] = mapped_column(ForeignKey("stores.code"))
+    status: Mapped[BindingStatus] = mapped_column(
+        Enum(
+            BindingStatus,
+            native_enum=False,
+            create_constraint=True,
+            length=16,
+            values_callable=lambda e: [m.value for m in e],
+            name="binding_status",
+        ),
+        default=BindingStatus.PENDING,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    confirmed_by_id: Mapped[int | None] = mapped_column(ForeignKey("accounts.id"))
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    uploader: Mapped[Uploader] = relationship(back_populates="binding")
+    store: Mapped[Store] = relationship()
+    confirmed_by: Mapped[Account | None] = relationship()
+
+
+class LineWebhookEvent(Base):
+    """A LINE webhook event already taken, by its webhookEventId. LINE may deliver one
+    event more than once (redelivery, network retries); only the first is processed."""
+
+    __tablename__ = "line_webhook_events"
+
+    webhook_event_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    upload_id: Mapped[int | None] = mapped_column(ForeignKey("uploads.id"))
+
 
 class Upload(Base):
     """上傳: one file as received. Append-only: a DB trigger rejects DELETE and any
     change to the original (uploader, submitting account, filename, bytes, hash, size, time).
-    store_code and reply_text are processing results, filled in after parsing."""
+    store_code, reply_text, report_text and failure_reason are processing results,
+    filled in after parsing."""
 
     __tablename__ = "uploads"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    uploader_id: Mapped[int] = mapped_column(ForeignKey("uploaders.id"))
+    # NULL when LINE did not say which account sent the file (userId is not always included).
+    uploader_id: Mapped[int | None] = mapped_column(ForeignKey("uploaders.id"))
     # The web account that sent the file from the 模擬群組上傳 page; NULL when it came from LINE.
     submitted_by_id: Mapped[int | None] = mapped_column(ForeignKey("accounts.id"))
     filename: Mapped[str] = mapped_column(String(255))
@@ -133,8 +183,10 @@ class Upload(Base):
     reply_text: Mapped[str | None] = mapped_column(Text)  # what the LINE reply says
     # The full reply with every finding; the LINE reply links here when it is cut short.
     report_text: Mapped[str | None] = mapped_column(Text)
+    # Why processing broke (exception type and code location, never cell content); NULL if it didn't.
+    failure_reason: Mapped[str | None] = mapped_column(Text)
 
-    uploader: Mapped[Uploader] = relationship()
+    uploader: Mapped[Uploader | None] = relationship()
     submitted_by: Mapped[Account | None] = relationship()
     store: Mapped[Store | None] = relationship()
 

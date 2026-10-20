@@ -16,6 +16,9 @@
 #   DATABASE_URL    Neon connection string; must carry sslmode=require (or verify-ca/verify-full).
 #                   Required on the first deploy; later deploys reuse the stored secret.
 #   SESSION_SECRET  signed-session key. Generated on the first deploy if unset.
+#   LINE_CHANNEL_SECRET, LINE_CHANNEL_ACCESS_TOKEN
+#                   Messaging API channel keys for the webhook. Optional: until they are
+#                   stored once, the service runs without LINE (the webhook answers 503).
 #   PUBLIC_BASE_URL absolute base for links in replies; default is the Cloud Run service URL.
 #   REGION          default asia-east1.   SERVICE  default bakery-orders.
 #   DRY_RUN=1       print the gcloud commands instead of running them (no secret values printed).
@@ -30,11 +33,15 @@ RUNTIME_SA_NAME="${SERVICE}-run"
 RUNTIME_SA="${RUNTIME_SA_NAME}@${GCP_PROJECT}.iam.gserviceaccount.com"
 DRY_RUN="${DRY_RUN:-}"
 
-# env var name -> Secret Manager secret name. New secrets (e.g. LINE channel keys) go here.
+# env var name -> Secret Manager secret name.
 SECRETS=(
   "DATABASE_URL=bakery-database-url"
   "SESSION_SECRET=bakery-session-secret"
+  "LINE_CHANNEL_SECRET=bakery-line-channel-secret"
+  "LINE_CHANNEL_ACCESS_TOKEN=bakery-line-channel-access-token"
 )
+# Secrets the service can start without: skipped while they don't exist and aren't given.
+OPTIONAL_SECRETS=" LINE_CHANNEL_SECRET LINE_CHANNEL_ACCESS_TOKEN "
 
 cd "$(dirname "$0")/.."
 
@@ -94,6 +101,9 @@ for pair in "${SECRETS[@]}"; do
   if ! exists gcloud --project "$GCP_PROJECT" secrets describe "$secret"; then
     if [[ -z "$value" && "$var" == "SESSION_SECRET" ]]; then
       value="$(openssl rand -hex 32)"
+    fi
+    if [[ -z "$value" && "$OPTIONAL_SECRETS" == *" $var "* ]]; then
+      continue
     fi
     if [[ -z "$value" ]]; then
       echo "Secret $secret does not exist yet: set $var for the first deploy." >&2
