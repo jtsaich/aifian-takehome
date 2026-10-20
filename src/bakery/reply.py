@@ -18,6 +18,8 @@ from bakery.outcome import (
     FindingKind,
     Severity,
     SkipReason,
+    UploaderNotice,
+    UploaderNoticeKind,
     UploadOutcome,
 )
 from bakery.phone import PhoneProblem
@@ -26,6 +28,9 @@ from bakery.phone import PhoneProblem
 LINE_TEXT_LIMIT = 5000
 # Shown in errors about dates, as the format to follow.
 DATE_EXAMPLE = "2026/11/08"
+# Something broke on our side, not in the file. The webhook also sends it on its own
+# when a file could not even be kept.
+PROCESSING_FAILED = "這份檔案沒處理成功，總部已收到通知。"
 
 _SECTIONS: tuple[tuple[Severity, str], ...] = (
     (Severity.ERROR, "【沒有收，請改好後再傳一次】"),
@@ -43,6 +48,8 @@ class Reply:
 def render_reply(outcome: UploadOutcome, report_url: str) -> Reply:
     """`report_url` is where the full list can be read when the LINE reply is cut short."""
     head = _summary(outcome)
+    if outcome.uploader_notice is not None:
+        head = f"{uploader_notice_text(outcome.uploader_notice)}\n{head}"
     items = [
         (title, f"・{finding_text(f)}")
         for severity, title in _SECTIONS
@@ -77,6 +84,8 @@ def _rest(count: int, report_url: str) -> str:
 
 
 def _summary(outcome: UploadOutcome) -> str:
+    if outcome.failure is not None and outcome.failure.kind == FailureKind.INTERNAL_ERROR:
+        return PROCESSING_FAILED + "原檔已經保存，不用重傳。"
     if outcome.failure is not None:
         return f"這份檔案沒有收：{failure_text(outcome.failure)}"
     text = (
@@ -91,7 +100,23 @@ def _summary(outcome: UploadOutcome) -> str:
     return text
 
 
+def uploader_notice_text(notice: UploaderNotice) -> str:
+    """The reply's first line, about who sent the file and which 門市 they belong to."""
+    match notice.kind:
+        case UploaderNoticeKind.NEW_BINDING:
+            return f"已記錄您為 {notice.store_name}（待總部確認）"
+        case UploaderNoticeKind.OTHER_STORE:
+            return (
+                f"注意：您的帳號登記在{notice.bound_store_name}，這份是{notice.store_name}的檔案。"
+                "已照常收下，請確認沒有傳錯檔案。"
+            )
+        case UploaderNoticeKind.UNIDENTIFIED:
+            return "系統認不出是哪個 LINE 帳號傳的，檔案照常收下，但沒辦法記錄傳檔者。"
+    raise AssertionError(notice.kind)
+
+
 def failure_text(failure: Failure) -> str:
+    """Why the file was refused, for failures the 門市 can fix (not INTERNAL_ERROR)."""
     match failure.kind:
         case FailureKind.UNREADABLE_FILE:
             return "系統打不開這份檔案。請用喜餅訂單範本（.xlsx）存檔後再傳一次。"
@@ -107,8 +132,6 @@ def failure_text(failure: Failure) -> str:
                 f"門市代碼「{failure.detail['store_code']}」不在門市清單裡。"
                 "請確認範本左上角的門市代碼後再傳一次。"
             )
-        case FailureKind.INTERNAL_ERROR:
-            return "系統處理時出了問題，檔案已經保存，請通知總部處理，不用重傳。"
     raise AssertionError(failure.kind)
 
 

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}門市綁定{% endblock %}
+{% block content %}
+<p class="muted">傳檔者第一次傳範本檔時，系統依檔案裡的門市代碼先記錄他屬於哪家門市，等總部確認。一家門市可以有好幾位傳檔者；確認時可以改成正確的門市。</p>
+<table>
+  <thead>
+    <tr><th>傳檔者</th><th>LINE 帳號 ID</th><th>門市</th><th>狀態</th><th>第一次記錄</th>{% if can(Area.CONFIRMATIONS) %}<th></th>{% endif %}</tr>
+  </thead>
+  <tbody>
+    {% for b in bindings %}
+    <tr class="binding {{ b.status }}">
+      <td>{{ b.uploader.display_name or "（沒有名稱）" }}</td>
+      <td>{{ b.uploader.line_user_id }}</td>
+      {% if can(Area.CONFIRMATIONS) %}
+      <td>
+        <form method="post" action="/bindings" id="confirm-{{ b.uploader_id }}">
+          <input type="hidden" name="uploader_id" value="{{ b.uploader_id }}">
+          <select name="store_code">
+            {% for s in stores %}
+            <option value="{{ s.code }}" {% if s.code == b.store_code %}selected{% endif %}>{{ s.name }}（{{ s.code }}）</option>
+            {% endfor %}
+          </select>
+        </form>
+      </td>
+      {% else %}
+      <td>{{ b.store.name }}（{{ b.store_code }}）</td>
+      {% endif %}
+      <td class="status">{% if b.status == "confirmed" %}已確認（{{ b.confirmed_by.display_name if b.confirmed_by else "預先設定" }}{% if b.confirmed_at %}，{{ b.confirmed_at|taipei }}{% endif %}）{% else %}待總部確認{% endif %}</td>
+      <td>{{ b.created_at|taipei }}</td>
+      {% if can(Area.CONFIRMATIONS) %}
+      <td><button type="submit" form="confirm-{{ b.uploader_id }}">{{ "確認" if b.status == "pending" else "改門市" }}</button></td>
+      {% endif %}
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="muted">還沒有傳檔者</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
