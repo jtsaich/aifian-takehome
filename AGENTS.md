@@ -28,3 +28,9 @@ Default five-role vocabulary (needs-triage, needs-info, ready-for-agent, ready-f
 ### Domain docs
 
 Single-context: root `GLOSSARY.md` + `docs/adr/`. See `docs/agents/domain.md`.
+
+## 常用指令
+
+- 安裝：`uv sync`
+- 測試：`uv run pytest`
+- 重新產生範本、模擬檔與對照表（輸出到 `mock_data/`，預設第一天＝台北時間今天）：`uv run generate-mock-data [--today YYYY-MM-DD] [--seed N]`。repo 裡的 `mock_data/` 是以 `mock_data/expectations.json` 記錄的 seed 與日期產生的快照，測試會檢查它跟產生器一致；改了產生器就用同一個日期重跑一次再 commit。

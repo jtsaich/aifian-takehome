@@ -1,0 +1,28 @@
+[project]
+name = "bakery-orders"
+version = "0.1.0"
+description = "喜餅訂單匯流：門市 Excel 經 LINE 群組上傳，後端合併總表、稽核、產生廚房彙總"
+requires-python = ">=3.11"
+dependencies = [
+    "openpyxl>=3.1",
+    "tzdata>=2026.5",
+]
+
+[project.scripts]
+generate-mock-data = "bakery.mockdata.__main__:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bakery"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
