@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import os
 import traceback
 from dataclasses import replace
 from datetime import datetime
@@ -32,7 +31,7 @@ from bakery.parsing import (
     parse_upload,
     sort_findings,
 )
-from bakery.reply import render_reply
+from bakery.reply import render_reply, site_url
 
 log = logging.getLogger(__name__)
 
@@ -92,7 +91,7 @@ def process_upload(
         log.error("processing upload %s failed: %s", upload.id, upload.failure_reason)
         outcome = _failed(Failure(FailureKind.INTERNAL_ERROR))
 
-    reply = render_reply(outcome, report_url=_report_url(upload.id))
+    reply = render_reply(outcome, report_url=site_url(f"/uploads/{upload.id}"))
     reply_text = None if historical else reply.text
     upload.store_code = outcome.store_code
     upload.reply_text = reply_text
@@ -211,9 +210,3 @@ def _stored_orders(session: Session, store_code: str, parsed: ParsedFile) -> lis
         )
     )
     return [StoredOrder(order_no, phone, pickup_on) for order_no, phone, pickup_on in rows]
-
-
-def _report_url(upload_id: int) -> str:
-    """Absolute when PUBLIC_BASE_URL is set (LINE needs a full link), else a site path."""
-    base = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
-    return f"{base}/uploads/{upload_id}"

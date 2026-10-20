@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}廚房彙總{% endblock %}
+{% macro boxes(b) %}{% if b %}{{ b.count }}{% if b.pending %} <span class="flag">{{ pending_label }}</span>{% endif %}{% endif %}{% endmacro %}
+{% macro day(d) %}{{ d|ymd }}（{{ weekday(d) }}）{% endmacro %}
+{% block content %}
+{% set s = summary %}
+<form class="filters" method="get" action="/kitchen">
+  <label>取貨日從
+    <input type="date" name="start" value="{{ s.start.isoformat() }}">
+  </label>
+  <label>到
+    <input type="date" name="end" value="{{ s.end.isoformat() }}">
+  </label>
+  <button type="submit">查詢</button>
+  <a href="/kitchen">今天起 {{ default_days }} 天</a>
+</form>
+
+<p><strong>{{ day(s.start) }}～{{ day(s.end) }}</strong>　<a href="/kitchen.xlsx?start={{ s.start.isoformat() }}&amp;end={{ s.end.isoformat() }}">下載 .xlsx</a></p>
+<p class="muted">取消的不算。有修改在等總部確認的單，先照修改前的盒數算，數字旁標「{{ pending_label }}」。</p>
+<label class="inline"><input type="checkbox" id="expand-all"> 全部展開各門市</label>
+<table class="summary">
+  <thead>
+    <tr>{% for c in s.columns %}<th>{{ c }}</th>{% endfor %}</tr>
+  </thead>
+  {% for d in s.days %}
+  <tbody>
+    {% for row in [d.total] + d.stores|list %}
+    <tr class="{{ 'store' if row.store else 'day' }}">
+      <td>{% if not row.store %}<label class="inline"><input type="checkbox" class="expand" title="展開各門市"> {% endif %}{{ row.pickup_on|ymd }}{% if not row.store %}</label>{% endif %}</td>
+      <td>{{ weekday(row.pickup_on) }}</td>
+      <td>{{ row.store_name }}</td>
+      {% for p in s.products %}<td class="num">{{ boxes(row.boxes.get(p.code)) }}</td>{% endfor %}
+      <td class="num">{{ boxes(row.total) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  {% endfor %}
+</table>
+{% if not s.days %}<p class="muted">這段期間沒有要做的喜餅。</p>{% endif %}
+
+<h2>{{ pending_label }}的訂單</h2>
+<p class="muted">這些單有修改還在等總部確認，上表先照修改前的盒數算。</p>
+<table class="pending">
+  <thead>
+    <tr>{% for c in pending_columns %}<th>{{ c }}</th>{% endfor %}</tr>
+  </thead>
+  <tbody>
+    {% for o in s.pending_orders %}
+    <tr><td>{{ o.pickup_on|ymd }}</td><td>{{ o.store.name }}</td><td>{% if can(Area.OPERATIONS) %}<a href="/orders/{{ o.order_id }}">{{ o.order_no }}</a>{% else %}{{ o.order_no }}{% endif %}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if not s.pending_orders %}<p class="muted">沒有。</p>{% endif %}
+{% endblock %}

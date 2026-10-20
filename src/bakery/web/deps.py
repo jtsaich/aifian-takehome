@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import Request
+from fastapi.responses import Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
@@ -22,6 +24,23 @@ def get_session(request: Request) -> Iterator[Session]:
 def get_now() -> datetime:
     """The clock; tests override this dependency to pin "now"."""
     return datetime.now(TAIPEI)
+
+
+def date_or_none(text: str) -> date | None:
+    """A YYYY-MM-DD query parameter; None when empty or unreadable."""
+    try:
+        return date.fromisoformat(text) if text else None
+    except ValueError:
+        return None
+
+
+XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def xlsx_download(content: bytes, filename: str, ascii_filename: str) -> Response:
+    """An .xlsx attachment named `filename`; `ascii_filename` for clients without UTF-8 names."""
+    disposition = f'attachment; filename="{ascii_filename}"; filename*=UTF-8\'\'{quote(filename)}'
+    return Response(content, media_type=XLSX_MEDIA_TYPE, headers={"Content-Disposition": disposition})
 
 
 def _taipei(value: datetime) -> str:

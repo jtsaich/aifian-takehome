@@ -23,11 +23,17 @@
   form.login { display: flex; flex-direction: column; gap: .75rem; max-width: 18rem; }
   .error { color: #b00020; font-weight: bold; }
   .flag { background: #ffe0e0; border: 1px solid #d77; padding: 0 .3rem; font-size: .8rem; white-space: nowrap; }
+  label.inline { display: inline-flex; flex-direction: row; align-items: center; gap: .3rem; }
+  table.summary tr.day td { font-weight: bold; }
+  table.summary tr.store { display: none; color: #555; }
+  table.summary tbody:has(input.expand:checked) tr.store,
+  body:has(#expand-all:checked) table.summary tr.store { display: table-row; }
 </style>
 </head>
 <body>
 <nav>
   {% if can(Area.MASTER_LIST) %}<a href="/orders">總表</a>{% endif %}
+  {% if can(Area.KITCHEN_SUMMARY) %}<a href="/kitchen">廚房彙總</a>{% endif %}
   {% if can(Area.OPERATIONS) %}
   <a href="/uploads">上傳紀錄</a>
   <a href="/bindings">門市綁定</a>

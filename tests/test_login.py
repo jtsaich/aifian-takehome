@@ -30,6 +30,9 @@ PUBLIC = {("GET", "/"), ("GET", "/login"), ("POST", "/login"), ("POST", "/logout
 # 歷史資料匯入 is for 總部人員 only as well.
 PAGES: dict[str, set[str]] = {
     "/orders": {"hq-lin", "hq-chen", "kitchen", "owner"},
+    "/orders.xlsx": {"hq-lin", "hq-chen", "kitchen", "owner"},
+    "/kitchen": {"hq-lin", "hq-chen", "kitchen", "owner"},
+    "/kitchen.xlsx": {"hq-lin", "hq-chen", "kitchen", "owner"},
     "/orders/{order_id}": {"hq-lin", "hq-chen", "owner"},
     "/uploads": {"hq-lin", "hq-chen", "owner"},
     "/uploads/{upload_id}": {"hq-lin", "hq-chen", "owner"},
@@ -159,11 +162,12 @@ def test_kitchen_cannot_upload_from_the_demo_page(make_client, session, clean_fi
     assert session.scalars(select(Upload)).all() == []
 
 
-def test_kitchen_nav_shows_only_the_master_list(make_client):
+def test_kitchen_nav_shows_only_the_master_list_and_the_kitchen_summary(make_client):
     html = make_client("kitchen").get("/orders").text
     nav = re.search(r"<nav>(.*?)</nav>", html, re.S)[1]
 
     assert 'href="/orders"' in nav
+    assert '<a href="/kitchen">廚房彙總</a>' in nav
     assert 'href="/uploads"' not in nav
     assert 'href="/demo/upload"' not in nav
     assert 'href="/customers"' not in nav

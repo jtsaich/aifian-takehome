@@ -123,7 +123,7 @@ def test_a_template_file_is_kept_processed_and_answered_with_a_reply(webhook, li
     assert line.replies == [
         {"replyToken": "reply-token-1", "messages": [{"type": "text", "text": upload.reply_text}]}
     ]
-    assert upload.reply_text == "台中中正店（TC01）：收到 2 張喜餅訂單、3 筆訂單明細。"
+    assert upload.reply_text == "台中中正店（TC01）：收到 2 張喜餅訂單、3 筆訂單明細。\n\n廚房彙總：/kitchen"
     assert {o.order_no for o in session.scalars(select(Order))} == {"0201", "0202"}
 
 
@@ -215,7 +215,9 @@ def test_a_broken_template_still_gets_a_reply(webhook, line, session, make_templ
 
     send(webhook, line, 1, buf.getvalue())
 
-    assert line.reply_texts == ["這份檔案沒有收：門市代碼「XX99」不在門市清單裡。請確認範本左上角的門市代碼後再傳一次。"]
+    assert line.reply_texts == [
+        "這份檔案沒有收：門市代碼「XX99」不在門市清單裡。請確認範本左上角的門市代碼後再傳一次。\n\n廚房彙總：/kitchen"
+    ]
 
 
 def test_a_first_time_uploader_is_recorded_pending_and_told_so(webhook, line, session, clean_file):
@@ -225,7 +227,7 @@ def test_a_first_time_uploader_is_recorded_pending_and_told_so(webhook, line, se
 
     first_line, summary = line.reply_texts[0].split("\n", 1)
     assert first_line == "已記錄您為 台中中正店（待總部確認）"
-    assert summary == "台中中正店（TC01）：收到 2 張喜餅訂單、3 筆訂單明細。"
+    assert summary == "台中中正店（TC01）：收到 2 張喜餅訂單、3 筆訂單明細。\n\n廚房彙總：/kitchen"
     uploader = session.scalars(select(Uploader).where(Uploader.line_user_id == "Unew0001")).one()
     assert uploader.display_name == "阿華"  # so 總部 can tell who to confirm
     assert (uploader.binding.store_code, uploader.binding.status) == ("TC01", BindingStatus.PENDING)
@@ -285,7 +287,7 @@ def test_if_even_the_original_cannot_be_kept_the_store_still_gets_an_answer(
     monkeypatch.setattr("bakery.line_webhook.process_upload", database_down)
 
     assert send(webhook, line, 1, clean_file).status_code == 200
-    assert line.reply_texts == [PROCESSING_FAILED]
+    assert line.reply_texts == [f"{PROCESSING_FAILED}\n\n廚房彙總：/kitchen"]
 
 
 def test_logs_never_carry_names_or_phones(webhook, line, session, monkeypatch, make_template_file, caplog):

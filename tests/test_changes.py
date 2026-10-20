@@ -69,7 +69,7 @@ def _changes(session, upload_id: int) -> list[Change]:
     return list(session.scalars(select(Change).where(Change.upload_id == upload_id)))
 
 
-UNCHANGED_REPLY = "台中中正店（TC01）：這份檔案的內容之前都收過了，沒有新單，也沒有修改。"
+UNCHANGED_REPLY = "台中中正店（TC01）：這份檔案的內容之前都收過了，沒有新單，也沒有修改。\n\n廚房彙總：/kitchen"
 
 
 def test_a_row_missing_from_the_file_is_not_a_cancel(session, send):
