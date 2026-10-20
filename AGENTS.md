@@ -1,7 +1,7 @@
 # aifian-takehome
 
 FDE take-home：模擬一家老字號糕餅連鎖的真實案子。門市照舊用 Excel 記喜餅訂單，只是把檔案改傳到中央廚房的 LINE OA；後端自動合併總表、做稽核、產生廚房生產彙總，並以電話為 ID 建立客人資料。
-需求在 `docs/requirements/requirements.md`（**v0 草案，Jack 核准前不寫程式**）。題目原文與計畫在 `~/ootobai/vault/scratch-pad/AIFIAN.md`、`~/ootobai/vault/projects/aifian-takehome/plan.md`。
+實作依據是 `.scratch/mvp/issues/` 的 ticket、`GLOSSARY.md`、`docs/adr/`；實作共用筆記在 `~/ootobai/vault/projects/aifian-takehome/impl-notes/architecture.md`。`docs/requirements/requirements.md` 由 ticket 13 改寫，改寫前以 ticket 為準。題目原文與計畫在 `~/ootobai/vault/scratch-pad/AIFIAN.md`、`~/ootobai/vault/projects/aifian-takehome/plan.md`。
 
 Stack：Python＋FastAPI＋Postgres。交付形式：repo＋demo 影片，期限 2–3 天。
 
