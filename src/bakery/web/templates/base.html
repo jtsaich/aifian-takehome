@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{% endblock %}｜喜餅訂單匯流</title>
+<style>
+  body { font-family: system-ui, "PingFang TC", "Noto Sans TC", sans-serif; margin: 0 1.5rem 2rem; color: #222; }
+  nav { display: flex; gap: 1.25rem; padding: .75rem 0; border-bottom: 1px solid #ccc; margin-bottom: 1rem; }
+  nav a { color: #7a3b12; text-decoration: none; }
+  nav a:hover { text-decoration: underline; }
+  table { border-collapse: collapse; font-size: .9rem; }
+  th, td { border: 1px solid #ccc; padding: .3rem .5rem; text-align: left; vertical-align: top; }
+  th { background: #fce4d6; }
+  td.num { text-align: right; }
+  .banner { background: #fff3cd; border: 1px solid #e0b400; padding: .6rem .9rem; font-weight: bold; }
+  .reply { white-space: pre-wrap; background: #eaf7e6; border: 1px solid #8cc47a; padding: .8rem 1rem; max-width: 40rem; }
+  form.filters, form.upload { display: flex; gap: 1rem; align-items: end; flex-wrap: wrap; margin-bottom: 1rem; }
+  label { display: flex; flex-direction: column; gap: .2rem; font-size: .9rem; }
+  .muted { color: #777; }
+</style>
+</head>
+<body>
+<nav>
+  <a href="/orders">總表</a>
+  <a href="/uploads">上傳紀錄</a>
+  <a href="/demo/upload">模擬群組上傳</a>
+</nav>
+<h1>{{ self.title() }}</h1>
+{% block content %}{% endblock %}
+</body>
+</html>
