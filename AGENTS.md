@@ -32,7 +32,8 @@ Single-context: root `GLOSSARY.md` + `docs/adr/`. See `docs/agents/domain.md`.
 ## 常用指令
 
 - 安裝：`uv sync`
-- 本機啟動（app＋Postgres）：`docker compose up --build`，開 http://localhost:8000 。容器啟動時先跑 `bakery-init`（Alembic 升到 head＋種入門市、品項、demo 傳檔者，可重跑）。
+- 本機啟動（app＋Postgres）：`docker compose up --build`，開 http://localhost:8000 。`init` 服務先跑 `bakery-init`（Alembic 升到 head＋種入門市、品項、demo 傳檔者，可重跑），`app` 才啟動。
+- 部署到 Cloud Run＋Neon：`GCP_PROJECT=... DATABASE_URL=...?sslmode=require scripts/deploy.sh`（可重跑；`DRY_RUN=1` 只印指令）。詳見 README「部署」。正式環境的 migration 由 Cloud Run job 執行，不在容器啟動時跑。新增 secret 時加到 `scripts/deploy.sh` 的 `SECRETS`。
 - 測試：`uv run pytest`（需要 Docker：testcontainers 每次測試起一個 Postgres）
 - 新增 migration（歷史保持線性，一張 ticket 一個）：`DATABASE_URL=... uv run alembic revision --autogenerate --rev-id 000N -m "<slug>"`，產生後要人工檢查。
 - 重新產生範本、模擬檔與對照表（輸出到 `mock_data/`，預設第一天＝台北時間今天）：`uv run generate-mock-data [--today YYYY-MM-DD] [--seed N]`。repo 裡的 `mock_data/` 是以 `mock_data/expectations.json` 記錄的 seed 與日期產生的快照，測試會檢查它跟產生器一致；改了產生器就用同一個日期重跑一次再 commit。
