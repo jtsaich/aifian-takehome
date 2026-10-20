@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}客人 {{ customer.phone }}{% endblock %}
+{% block content %}
+<p><a href="/customers">← 客人資料</a></p>
+<p class="muted">只供內部查詢，不用來發訊息。</p>
+<table class="summary">
+  <tr><th>電話</th><td>{{ customer.phone }}</td></tr>
+  <tr><th>訂單數</th><td class="order-count">{{ customer.order_count }}</td></tr>
+  <tr><th>總盒數</th><td class="total-boxes">{{ customer.total_boxes }}（不含取消）</td></tr>
+  <tr><th>第一次接單日</th><td>{{ customer.first_received_on|ymd }}</td></tr>
+  <tr><th>最近一次接單日</th><td>{{ customer.latest_received_on|ymd }}</td></tr>
+  <tr><th>下過單的門市</th><td>{{ customer.stores|map(attribute="name")|join("、") }}</td></tr>
+  <tr><th>訂購人姓名</th>
+    <td>{{ customer.orderer_names|join("、") }}{% if customer.has_several_names %}
+      <span class="flag">同一支電話留過不同的姓名</span>{% endif %}</td></tr>
+</table>
+
+<h2>喜餅訂單</h2>
+<table>
+  <thead>
+    <tr>
+      <th>接單日</th><th>門市</th><th>單號</th><th>訂購人姓名</th><th>電話（原始寫法）</th>
+      <th>取貨日</th><th>盒數</th><th>狀態</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for co in customer.orders %}
+    {% set o = co.order %}
+    <tr class="order">
+      <td>{{ o.received_on|ymd }}</td>
+      <td>{{ o.store.name }}</td>
+      <td class="order-no"><a href="/orders/{{ o.id }}">{{ o.order_no }}</a></td>
+      <td>{{ o.orderer_name or "" }}</td>
+      <td>{{ o.phone }}</td>
+      <td>{{ o.pickup_on|ymd }}</td>
+      <td class="num">{{ co.boxes }}</td>
+      <td>{{ "全部取消" if co.cancelled else "" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
