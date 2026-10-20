@@ -4,16 +4,26 @@ version = "0.1.0"
 description = "喜餅訂單匯流：門市 Excel 經 LINE 群組上傳，後端合併總表、稽核、產生廚房彙總"
 requires-python = ">=3.11"
 dependencies = [
+    "alembic>=1.13",
+    "fastapi>=0.115",
+    "jinja2>=3.1",
     "openpyxl>=3.1",
+    "psycopg[binary]>=3.2",
+    "python-multipart>=0.0.9",
+    "sqlalchemy>=2.0",
     "tzdata>=2026.5",
+    "uvicorn>=0.30",
 ]
 
 [project.scripts]
 generate-mock-data = "bakery.mockdata.__main__:main"
+bakery-init = "bakery.db:init_main"
 
 [dependency-groups]
 dev = [
+    "httpx>=0.27",
     "pytest>=8",
+    "testcontainers[postgres]>=4.8",
 ]
 
 [build-system]

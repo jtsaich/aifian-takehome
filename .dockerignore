@@ -1,0 +1,9 @@
+.git
+.venv
+.scratch
+.pytest_cache
+**/__pycache__
+docs
+mock_data
+scripts
+tests

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}總表{% endblock %}
+{% block content %}
+<form class="filters" method="get" action="/orders">
+  <label>門市
+    <select name="store">
+      <option value="">全部門市</option>
+      {% for s in stores %}
+      <option value="{{ s.code }}" {% if s.code == store %}selected{% endif %}>{{ s.name }}（{{ s.code }}）</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>取貨日
+    <input type="date" name="pickup_on" value="{{ pickup_on.isoformat() if pickup_on else '' }}">
+  </label>
+  <button type="submit">篩選</button>
+  <a href="/orders">清除</a>
+</form>
+
+<p class="muted">共 {{ lines|length }} 筆訂單明細</p>
+<table>
+  <thead>
+    <tr>
+      <th>取貨日</th><th>門市</th><th>單號</th><th>品項</th><th>盒數</th><th>狀態</th><th>備註</th>
+      <th>訂購人姓名</th><th>電話</th><th>接單日</th><th>宴客日</th><th>新人姓名</th><th>接單人</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for line in lines %}
+    {% set o = line.order %}
+    <tr>
+      <td>{{ o.pickup_on|ymd }}</td>
+      <td>{{ o.store.name }}</td>
+      <td class="order-no">{{ o.order_no }}</td>
+      <td>{{ line.product.name }}</td>
+      <td class="num">{{ line.quantity }}</td>
+      <td>{{ "取消" if line.status == "cancelled" else "" }}</td>
+      <td>{{ line.note or "" }}</td>
+      <td>{{ o.orderer_name or "" }}</td>
+      <td>{{ o.phone or "" }}</td>
+      <td>{{ o.received_on|ymd }}</td>
+      <td>{{ o.banquet_on|ymd }}</td>
+      <td>{{ o.couple_names or "" }}</td>
+      <td>{{ o.taken_by or "" }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="13" class="muted">沒有符合的訂單明細</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
