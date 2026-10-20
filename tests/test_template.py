@@ -1,9 +1,16 @@
+import io
 from pathlib import Path
 
 from openpyxl import load_workbook
 
-from bakery.catalog import PRODUCTS, STORES
+from bakery.catalog import PRODUCTS, STORES, product_names
+from bakery.parsing import is_template_file
 from bakery.template import write_template
+
+
+def _write(tmp_path: Path, store) -> Path:
+    return write_template(tmp_path / "t.xlsx", store, product_names())
+
 
 EXPECTED_HEADERS = [
     "單號",
@@ -32,14 +39,14 @@ def _list_options(ws, header: str) -> list[str]:
 
 
 def test_template_has_one_header_row_with_order_and_line_columns(tmp_path: Path):
-    path = write_template(tmp_path / "t.xlsx", STORES[0])
+    path = _write(tmp_path, STORES[0])
     ws = load_workbook(path).active
     assert [c.value for c in ws[3]] == EXPECTED_HEADERS
 
 
 def test_template_puts_store_code_and_version_in_fixed_cells(tmp_path: Path):
     store = STORES[2]
-    ws = load_workbook(write_template(tmp_path / "t.xlsx", store)).active
+    ws = load_workbook(_write(tmp_path, store)).active
     assert ws["A1"].value == "門市代碼"
     assert ws["B1"].value == store.code
     assert ws["E1"].value == "範本版本"
@@ -47,7 +54,7 @@ def test_template_puts_store_code_and_version_in_fixed_cells(tmp_path: Path):
 
 
 def test_product_dropdown_lists_exactly_the_catalog_names(tmp_path: Path):
-    ws = load_workbook(write_template(tmp_path / "t.xlsx", STORES[0])).active
+    ws = load_workbook(_write(tmp_path, STORES[0])).active
     assert _list_options(ws, "品項") == [
         "龍鳳喜餅",
         "鳳梨酥禮盒",
@@ -61,5 +68,19 @@ def test_product_dropdown_lists_exactly_the_catalog_names(tmp_path: Path):
 
 
 def test_status_dropdown_only_offers_cancel(tmp_path: Path):
-    ws = load_workbook(write_template(tmp_path / "t.xlsx", STORES[0])).active
+    ws = load_workbook(_write(tmp_path, STORES[0])).active
     assert _list_options(ws, "狀態") == ["取消"]
+
+
+def test_hq_downloads_a_stores_template_built_from_the_live_product_list(client, session):
+    client.post("/products", data={"kind": "product", "name": "芋頭酥禮盒"})
+
+    resp = client.get("/templates/TC02.xlsx")
+
+    assert resp.status_code == 200
+    ws = load_workbook(io.BytesIO(resp.content)).active
+    assert (ws["B1"].value, ws["D1"].value) == ("TC02", "台中北屯店")
+    assert _list_options(ws, "品項") == [*(p.name for p in PRODUCTS), "芋頭酥禮盒"]
+    assert is_template_file(resp.content)
+    assert '<a href="/templates/TC02.xlsx">' in client.get("/products").text
+    assert client.get("/templates/XX99.xlsx").status_code == 404

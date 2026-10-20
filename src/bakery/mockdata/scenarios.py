@@ -20,7 +20,6 @@ from bakery import template as t
 from bakery.catalog import STORES, Store, product_names, store_by_code
 from bakery.mockdata.expectations import (
     ChangeExpectation,
-    ChangeKind,
     FieldDiff,
     FileExpectation,
     Finding,
@@ -36,6 +35,7 @@ from bakery.mockdata.expectations import (
     ToleranceKind,
     render_markdown,
 )
+from bakery.models import ChangeKind
 from bakery.mockdata.people import People, format_phone
 from bakery.mockdata.sheet import (
     DATE_ROC,
@@ -169,7 +169,7 @@ def _summary(store: Store, orders: int, lines: int, rejected_rows: int, warnings
 
 
 def _new_sheet(store: Store, headers: list[str] | None = None) -> Workbook:
-    return t.build_template(store, headers or list(t.COLUMNS))
+    return t.build_template(store, product_names(), headers or list(t.COLUMNS))
 
 
 def _expectation(
@@ -647,7 +647,7 @@ def _tc01_day2(ctx: _Ctx, day1: _Day1, day1_path: str, relpath: str) -> tuple[Wo
             FieldDiff(t.COL_PHONE, d1[no].phone, o[no].phone),
             FieldDiff(t.COL_BANQUET_ON, d1[no].banquet_on.isoformat(), new_banquet.isoformat()),
         ],
-        f"單號 {no}：資料更正，電話已更新；宴客日 {slash_text(d1[no].banquet_on)}→{slash_text(new_banquet)}",
+        f"單號 {no}：資料更正，電話跟之前不同；宴客日 {slash_text(d1[no].banquet_on)}→{slash_text(new_banquet)}",
     )
 
     no = "0108"
@@ -883,7 +883,7 @@ def generate(out_dir: Path, seed: int, today: date) -> Manifest:
     templates = []
     for store in STORES:
         rel = f"templates/{store.code}_{store.name}_喜餅訂單範本_{t.TEMPLATE_VERSION}.xlsx"
-        t.write_template(out_dir / rel, store)
+        t.write_template(out_dir / rel, store, product_names())
         templates.append(rel)
 
     def rel_day1(code: str) -> str:

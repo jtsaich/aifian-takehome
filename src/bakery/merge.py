@@ -16,7 +16,7 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from bakery.changes import apply_diffs, decide, detect_change, new_order_diffs
+from bakery.changes import apply_diffs, decide, detect_change, new_order_diffs, split_info_fix
 from bakery.models import Change, ChangeDecision, ChangeEntry, ChangeKind, Order, PendingReview, Upload
 from bakery.outcome import FieldDiff, HeldChange, OrderChange
 from bakery.parsing import ParsedOrder
@@ -82,6 +82,11 @@ def merge_orders(
             unchanged.append(parsed.order_no)
             continue
         decision = decide(detected, order, today=today, cutoff_days=cutoff_days, historical=historical)
+        if decision == ChangeDecision.HELD and (split := split_info_fix(detected)) is not None:
+            info, detected = split
+            _log(session, upload, order, info.kinds, info.diffs, ChangeDecision.APPLIED, is_new_order=False)
+            apply_diffs(order, info.diffs)
+            changes.append(OrderChange(parsed.order_no, info.kinds, info.diffs, ChangeDecision.APPLIED))
         change = _log(session, upload, order, detected.kinds, detected.diffs, decision, is_new_order=False)
         if decision == ChangeDecision.APPLIED:
             apply_diffs(order, detected.diffs)

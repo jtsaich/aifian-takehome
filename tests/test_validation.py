@@ -10,11 +10,18 @@ from datetime import date, datetime
 import pytest
 from sqlalchemy import select
 
-from bakery.catalog import store_by_code
+from bakery import template as tmpl
+from bakery.catalog import product_names, store_by_code
 from bakery.models import Order, Upload
 from bakery.pipeline import process_upload
-from bakery.template import FIRST_DATA_ROW, SHEET_NAME, build_template
+from bakery.template import FIRST_DATA_ROW, SHEET_NAME
 from bakery.xlsx import workbook_bytes
+
+
+def build_template(store, headers=tmpl.COLUMNS):
+    """The 範本 with the seed catalog's 品項 dropdown."""
+    return tmpl.build_template(store, product_names(), headers)
+
 
 # 單號, 訂購人姓名, 電話, 接單日, 取貨日, 宴客日, 新人姓名, 接單人, 品項, 盒數, 備註, 狀態
 ROW = ("0301", "王小姐", "0912-345-678", date(2026, 10, 20), date(2026, 11, 28), None,
@@ -175,6 +182,24 @@ def test_one_order_split_over_sheets_is_kept_when_consistent(session, now):
     upload(session, now, workbook_file({"十月": [row()], "十一月": [row(product="鳳梨酥禮盒")]}))
 
     assert len(orders(session)["0301"].lines) == 2
+
+
+def test_the_same_row_repeated_on_another_sheet_is_taken_once(session, now):
+    result = upload(
+        session, now,
+        workbook_file({"十月": [row(), row(product="鳳梨酥禮盒", qty=40)], "十一月": [row(phone="0912 345 678")]}),
+    )
+
+    assert result.reply_text.startswith("台中中正店（TC01）：收到 1 張喜餅訂單、2 筆訂單明細。\n")
+    assert result.outcome.rejected_rows == ()
+    assert {ln.product.name: ln.quantity for ln in orders(session)["0301"].lines} == {"龍鳳喜餅": 100, "鳳梨酥禮盒": 40}
+
+
+def test_the_same_product_with_other_content_on_another_sheet_drops_the_order(session, now):
+    result = upload(session, now, workbook_file({"十月": [row()], "十一月": [row(qty=120)]}))
+
+    assert orders(session) == {}
+    assert "同一張單的龍鳳喜餅寫了好幾列，整張單沒有收" in result.reply_text
 
 
 def test_one_order_disagreeing_across_sheets_is_dropped_whole(session, now):

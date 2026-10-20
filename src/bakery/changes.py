@@ -8,7 +8,7 @@ Values are compared and logged as text: dates ISO, 盒數 digits, 狀態 a LineS
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date
 
@@ -65,6 +65,11 @@ class Detected:
     diffs: tuple[FieldDiff, ...]  # order fields in column order, then lines in file order
 
 
+def is_suspected_reuse(kinds: Iterable[ChangeKind]) -> bool:
+    """疑似單號重複使用: it always stands alone (detect_change), and the whole 修改 waits."""
+    return tuple(kinds) == (ChangeKind.SUSPECTED_REUSE,)
+
+
 def new_order_diffs(parsed: ParsedOrder) -> tuple[FieldDiff, ...]:
     """A 新單 as change log entries from nothing: what apply_diffs builds the order from."""
     diffs = [
@@ -95,12 +100,26 @@ def detect_change(order: Order, parsed: ParsedOrder) -> Detected | None:
     if not diffs:
         return None
     kinds = {d.kind for d in diffs}
+    if _suspected_reuse(diffs):
+        return Detected((ChangeKind.SUSPECTED_REUSE,), tuple(diffs))
+    return Detected(tuple(k for k in ChangeKind if k in kinds), tuple(diffs))
+
+
+def _suspected_reuse(diffs: Sequence[FieldDiff]) -> bool:
+    """GLOSSARY 疑似單號重複使用: the phone changed, and so did the set of 品項 (one added,
+    取消, or back from 取消) or the 取貨日. A phone change with only other 盒數 is a
+    資料更正 plus 追加 / 減量, classified as usual."""
     phone_changed = any(
         d.field is ChangeField.PHONE and d.old is not None and d.new is not None for d in diffs
     )
-    if phone_changed and kinds & PRODUCTION_KINDS:
-        return Detected((ChangeKind.SUSPECTED_REUSE,), tuple(diffs))
-    return Detected(tuple(k for k in ChangeKind if k in kinds), tuple(diffs))
+    pickup_changed = any(d.field is ChangeField.PICKUP_ON for d in diffs)
+    products_changed = any(
+        d.product_code is not None
+        and d.kind in PRODUCTION_KINDS
+        and (d.field is ChangeField.STATUS or (d.field is ChangeField.QUANTITY and d.old is None))
+        for d in diffs
+    )
+    return phone_changed and (pickup_changed or products_changed)
 
 
 def past_cutoff(pickup_on: date, today: date, cutoff_days: int) -> bool:
@@ -121,8 +140,8 @@ def decide(
       different orders sharing one 單號, and applying would overwrite the first one.
     - A change that affects production waits once past the 修改截止點 of the earlier of
       the 取貨日 on record and the new one: postponing a near 取貨日 and pulling a far
-      one near both wait. The whole 修改 waits, 資料更正 parts included; a change that
-      is only 資料更正 always applies.
+      one near both wait. 資料更正 always applies: merge splits a held 修改's 資料更正
+      off with split_info_fix and applies it at once; only the production part waits.
     """
     if historical:
         return ChangeDecision.APPLIED
@@ -135,6 +154,22 @@ def decide(
     if past_cutoff(min(pickups), today, cutoff_days):
         return ChangeDecision.HELD
     return ChangeDecision.APPLIED
+
+
+def split_info_fix(detected: Detected) -> tuple[Detected, Detected] | None:
+    """A held 修改 that also carries 資料更正: (the 資料更正 part, which applies now, and
+    the production part, which waits). None when there is nothing to split off: no
+    資料更正, or a suspected reused 單號, whose content waits as a whole."""
+    if ChangeKind.SUSPECTED_REUSE in detected.kinds or ChangeKind.INFO_FIX not in detected.kinds:
+        return None
+    info = tuple(d for d in detected.diffs if d.kind is ChangeKind.INFO_FIX)
+    production = tuple(d for d in detected.diffs if d.kind is not ChangeKind.INFO_FIX)
+    if not production:
+        return None
+    return (
+        Detected((ChangeKind.INFO_FIX,), info),
+        Detected(tuple(k for k in detected.kinds if k is not ChangeKind.INFO_FIX), production),
+    )
 
 
 def apply_diffs(order: Order, diffs: Iterable[FieldDiff]) -> None:
@@ -171,6 +206,17 @@ def decode(field: ChangeField, text: str | None) -> str | int | date | LineStatu
         return int(text)
     if field is ChangeField.STATUS:
         return LineStatus(text)
+    return text
+
+
+def show_value(field: ChangeField, text: str | None) -> str:
+    """A change log value as pages and downloads show it ("" for empty)."""
+    if text is None:
+        return ""
+    if field in DATE_FIELDS:
+        return text.replace("-", "/")
+    if field is ChangeField.STATUS:
+        return "取消" if text == LineStatus.CANCELLED else "（空白）"
     return text
 
 

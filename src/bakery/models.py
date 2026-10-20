@@ -48,7 +48,7 @@ class ChangeKind(StrEnum):
     PICKUP_DATE = "pickup_date"  # 改取貨日
     CANCEL = "cancel"  # 取消: 狀態 newly marked 取消
     INFO_FIX = "info_fix"  # 資料更正: fields that don't affect production (phone-only included)
-    SUSPECTED_REUSE = "suspected_reuse"  # 疑似單號重複使用: phone changed AND 品項/盒數 or 取貨日 changed
+    SUSPECTED_REUSE = "suspected_reuse"  # 疑似單號重複使用: phone changed AND the set of 品項 or 取貨日 changed
 
 
 class ChangeField(StrEnum):
@@ -99,6 +99,11 @@ class Settings(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     # 修改截止點: 取貨日前 N 天 (bakery.changes.past_cutoff).
     cutoff_days: Mapped[int] = mapped_column(default=DEFAULT_CUTOFF_DAYS)
+    # The 總部人員 who last set cutoff_days, and when; NULL while it is the seeded default.
+    cutoff_days_set_by_id: Mapped[int | None] = mapped_column(ForeignKey("accounts.id"))
+    cutoff_days_set_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    cutoff_days_set_by: Mapped[Account | None] = relationship()
 
 
 class Role(StrEnum):
@@ -147,8 +152,11 @@ class Product(Base):
 
     code: Mapped[str] = mapped_column(String(16), primary_key=True)
     name: Mapped[str] = mapped_column(String(64), unique=True)
+    # The 總部人員 who added it on the web; NULL for the seeded catalog.
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("accounts.id"))
 
     aliases: Mapped[list[ProductAlias]] = relationship(back_populates="product")
+    created_by: Mapped[Account | None] = relationship()
 
 
 class ProductAlias(Base):
@@ -159,8 +167,11 @@ class ProductAlias(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     product_code: Mapped[str] = mapped_column(ForeignKey("products.code"))
     alias: Mapped[str] = mapped_column(String(64), unique=True)
+    # The 總部人員 who added it on the web; NULL for seeded aliases.
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("accounts.id"))
 
     product: Mapped[Product] = relationship(back_populates="aliases")
+    created_by: Mapped[Account | None] = relationship()
 
 
 class Uploader(Base):
@@ -222,6 +233,8 @@ class LineWebhookEvent(Base):
     webhook_event_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     upload_id: Mapped[int | None] = mapped_column(ForeignKey("uploads.id"))
+    # The file could not be fetched from LINE: the 傳檔者 was asked to send it again.
+    download_failed: Mapped[bool] = mapped_column(default=False, server_default=false())
 
 
 class Upload(Base):

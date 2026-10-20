@@ -42,7 +42,9 @@ PAGES: dict[str, set[str]] = {
     "/demo/upload": {"hq-lin", "hq-chen", "owner"},
     "/bindings": {"hq-lin", "hq-chen", "owner"},
     "/reviews": {"hq-lin", "hq-chen", "owner"},
+    "/reviews.xlsx": {"hq-lin", "hq-chen", "owner"},
     "/products": {"hq-lin", "hq-chen", "owner"},
+    "/templates/{store_code}.xlsx": {"hq-lin", "hq-chen", "owner"},
     "/settings": {"hq-lin", "hq-chen", "owner"},
     "/customers": {"hq-lin", "hq-chen", "owner"},
     "/customers/{order_id}": {"hq-lin", "hq-chen", "owner"},
@@ -60,7 +62,7 @@ def _registered_routes(engine) -> set[tuple[str, str]]:
 
 
 def _url(path: str) -> str:
-    return path.replace("{upload_id}", "1").replace("{order_id}", "1")
+    return path.replace("{upload_id}", "1").replace("{order_id}", "1").replace("{store_code}", "TC01")
 
 
 def _upload(client, file_bytes: bytes):

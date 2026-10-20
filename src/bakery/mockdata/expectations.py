@@ -13,6 +13,9 @@ import json
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 
+from bakery.changes import KIND_LABELS
+from bakery.models import ChangeKind
+
 
 class Seeded(StrEnum):
     """Typical store mistakes deliberately mixed into day-1 files.
@@ -97,25 +100,6 @@ class ToleranceKind(StrEnum):
     EXTRA_COLUMN = "extra_column"
     REORDERED_COLUMNS = "reordered_columns"
     HEADER_SYNONYM = "header_synonym"
-
-
-class ChangeKind(StrEnum):
-    ADD_QTY = "add_qty"  # 追加
-    REDUCE_QTY = "reduce_qty"  # 減量
-    PICKUP_DATE = "pickup_date"  # 改取貨日
-    CANCEL = "cancel"  # 取消
-    INFO_FIX = "info_fix"  # 資料更正
-    SUSPECTED_REUSE = "suspected_reuse"  # 疑似單號重複使用
-
-
-CHANGE_LABELS: dict[ChangeKind, str] = {
-    ChangeKind.ADD_QTY: "追加",
-    ChangeKind.REDUCE_QTY: "減量",
-    ChangeKind.PICKUP_DATE: "改取貨日",
-    ChangeKind.CANCEL: "取消",
-    ChangeKind.INFO_FIX: "資料更正",
-    ChangeKind.SUSPECTED_REUSE: "疑似單號重複使用",
-}
 
 
 class Outcome(StrEnum):
@@ -314,7 +298,7 @@ def render_markdown(m: Manifest) -> str:
                 w("| 單號 | 修改類型 | 內容 | 過截止點 | 結果 | 系統應回覆 |")
                 w("|---|---|---|---|---|---|")
                 for c in f.changes:
-                    kinds = "＋".join(CHANGE_LABELS[k] for k in c.kinds)
+                    kinds = "＋".join(KIND_LABELS[k] for k in c.kinds)
                     diffs = "；".join(
                         f"{d.product + ' ' if d.product else ''}{d.field} {d.old}→{d.new}" for d in c.diffs
                     )

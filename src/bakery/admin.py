@@ -7,11 +7,12 @@ A new 品項 or 品項別名 counts from the next upload on: a row refused for a
 from __future__ import annotations
 
 import re
+from datetime import datetime
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
-from bakery.models import Product, ProductAlias, Settings
+from bakery.models import Account, Product, ProductAlias, Settings
 
 # The 範本's 品項 cell is matched exactly after trimming (bakery.parsing), so names are
 # stored trimmed; a 品項 name and every 品項別名 share one namespace.
@@ -23,37 +24,52 @@ class AdminError(ValueError):
     """Refused input; the message is the 繁中 explanation shown on the page."""
 
 
+def settings(session: Session) -> Settings:
+    return session.get(Settings, 1)
+
+
 def cutoff_days(session: Session) -> int:
-    return session.get(Settings, 1).cutoff_days
+    return settings(session).cutoff_days
 
 
-def set_cutoff_days(session: Session, days: int) -> None:
+def set_cutoff_days(session: Session, days: int, *, account: Account, now: datetime) -> None:
     if not 0 <= days <= MAX_CUTOFF_DAYS:
         raise AdminError(f"截止天數要填 0 到 {MAX_CUTOFF_DAYS} 之間的整數。")
-    session.get(Settings, 1).cutoff_days = days
+    row = settings(session)
+    row.cutoff_days = days
+    row.cutoff_days_set_by_id = account.id
+    row.cutoff_days_set_at = now
     session.commit()
 
 
 def products(session: Session) -> list[Product]:
+    """Every 品項 by code, with its 品項別名 and who added each on the web."""
     return list(
-        session.scalars(select(Product).options(selectinload(Product.aliases)).order_by(Product.code))
+        session.scalars(
+            select(Product)
+            .options(
+                selectinload(Product.aliases).joinedload(ProductAlias.created_by),
+                joinedload(Product.created_by),
+            )
+            .order_by(Product.code)
+        )
     )
 
 
-def add_product(session: Session, name: str) -> Product:
+def add_product(session: Session, name: str, *, account: Account) -> Product:
     """A new 品項, coded after the last one (P08 after P07)."""
     name = _checked_name(session, name)
     numbers = [int(m[1]) for code in session.scalars(select(Product.code)) if (m := re.fullmatch(r"P(\d+)", code))]
-    product = Product(code=f"P{max(numbers, default=0) + 1:02d}", name=name)
+    product = Product(code=f"P{max(numbers, default=0) + 1:02d}", name=name, created_by_id=account.id)
     session.add(product)
     session.commit()
     return product
 
 
-def add_alias(session: Session, product_code: str, alias: str) -> ProductAlias:
+def add_alias(session: Session, product_code: str, alias: str, *, account: Account) -> ProductAlias:
     if session.get(Product, product_code) is None:
         raise AdminError("找不到這個品項。")
-    record = ProductAlias(product_code=product_code, alias=_checked_name(session, alias))
+    record = ProductAlias(product_code=product_code, alias=_checked_name(session, alias), created_by_id=account.id)
     session.add(record)
     session.commit()
     return record

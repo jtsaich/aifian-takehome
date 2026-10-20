@@ -7,8 +7,9 @@ Tolerant of what stores actually send: headers in any order, header synonyms,
 extra columns of their own, several order sheets, dates as Excel dates /
 民國年 / 西元年 / month-day text. A bad row is dropped with an error finding and
 the rest of the file is kept; an order whose rows disagree on order-level
-fields (even across sheets) is dropped whole. Only a file that can't be read
-as orders at all raises `FileRejected`.
+fields (even across sheets) is dropped whole. A row repeated unchanged on another
+sheet is read once. Only a file that can't be read as orders at all raises
+`FileRejected`.
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ from openpyxl.utils.datetime import from_excel
 from openpyxl.worksheet.worksheet import Worksheet
 
 from bakery import template as t
+from bakery.clock import date_text
 from bakery.outcome import (
     Failure,
     FailureKind,
@@ -76,8 +78,6 @@ REQUIRED_COLUMNS: tuple[str, ...] = (
 )
 # The header row is searched for in the first rows of each sheet.
 HEADER_SEARCH_ROWS = 10
-STORE_CODE_LABEL = "門市代碼"
-VERSION_LABEL = "範本版本"
 
 # Order-level columns compared across the rows of one 單號 (單號 itself is the key).
 _COMPARED_COLUMNS: tuple[str, ...] = tuple(c for c in t.ORDER_COLUMNS if c != t.COL_ORDER_NO)
@@ -148,7 +148,7 @@ def is_template_file(file_bytes: bytes) -> bool:
         for ws in wb.worksheets:
             top = ws.iter_rows(min_row=1, max_row=HEADER_SEARCH_ROWS, values_only=True)
             labels = {_text(v) for row in top for v in row}
-            if STORE_CODE_LABEL in labels and VERSION_LABEL in labels:
+            if t.STORE_CODE_LABEL in labels and t.VERSION_LABEL in labels:
                 return True
         return False
     finally:
@@ -194,24 +194,30 @@ def parse_upload(file_bytes: bytes, products: ProductLookup, today: date) -> Par
                 rejected.update((loc.sheet, r) for f in row for loc in f.locations for r in loc.rows)
 
     orders: list[ParsedOrder] = []
-    for order_no, rows in good_rows.items():
+    for order_no, all_rows in good_rows.items():
+        rows = _without_repeats(all_rows)
         order_errors = _order_errors(order_no, rows)
         if order_errors:
             findings.extend(order_errors)
-            rejected.update((r.sheet, r.row) for r in rows)
+            rejected.update((r.sheet, r.row) for r in all_rows)
         else:
             orders.append(_order(order_no, rows))
 
     sheet_names = tuple(wb.sheetnames)
-    position = {name: i for i, name in enumerate(sheet_names)}
     return ParsedFile(
         store_code=store_code,
         template_version=next((s.version for s in read if s.version), None),
         orders=tuple(orders),
         findings=sort_findings(findings, sheet_names),
-        rejected_rows=group_rows(sorted(rejected, key=lambda sr: (position[sr[0]], sr[1]))),
+        rejected_rows=rejected_rows(rejected, sheet_names),
         sheet_names=sheet_names,
     )
+
+
+def rejected_rows(refs: Iterable[tuple[str, int]], sheet_names: Sequence[str]) -> tuple[SheetRows, ...]:
+    """(sheet, row) pairs not taken in, grouped per sheet, in file order."""
+    position = {name: i for i, name in enumerate(sheet_names)}
+    return group_rows(sorted(refs, key=lambda sr: (position[sr[0]], sr[1])))
 
 
 def sort_findings(findings: Iterable[Finding], sheet_names: Sequence[str]) -> tuple[Finding, ...]:
@@ -257,8 +263,8 @@ def _order_sheet(ws: Worksheet) -> _OrderSheet | None:
                 ws=ws,
                 header_row=idx + 1,
                 columns=columns,
-                store_code=(code.upper() if (code := _label_value(above, STORE_CODE_LABEL)) else None),
-                version=_label_value(above, VERSION_LABEL),
+                store_code=(code.upper() if (code := _label_value(above, t.STORE_CODE_LABEL)) else None),
+                version=_label_value(above, t.VERSION_LABEL),
             )
     return None
 
@@ -388,6 +394,26 @@ def _row(
         note=_text(cells.get(t.COL_NOTE)),
         cancelled=status == t.STATUS_CANCELLED,
     )
+
+
+def _without_repeats(rows: list[_Row]) -> list[_Row]:
+    """`rows` minus those repeating, on another sheet, a row already seen (a store that
+    copies an order onto each month's sheet). Rows that differ stay, for _order_errors."""
+    seen: dict[tuple[Any, ...], str] = {}
+    kept = []
+    for r in rows:
+        key = (
+            *(_comparable(c, r.fields[c]) for c in _COMPARED_COLUMNS),
+            r.product.code,
+            r.quantity,
+            _comparable(t.COL_NOTE, r.note),
+            r.cancelled,
+        )
+        if key in seen and seen[key] != r.sheet:
+            continue
+        seen.setdefault(key, r.sheet)
+        kept.append(r)
+    return kept
 
 
 def _order_errors(order_no: str, rows: list[_Row]) -> list[Finding]:
@@ -548,7 +574,7 @@ def _text(value: Any) -> str | None:
 def _display_text(value: Any) -> str | None:
     """A cell value the way the 門市 sees it, for quoting back in the reply."""
     if isinstance(value, datetime | date):
-        return f"{value.year}/{value.month:02d}/{value.day:02d}"
+        return date_text(value)
     return _text(value)
 
 

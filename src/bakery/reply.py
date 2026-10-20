@@ -9,12 +9,13 @@ reply ends with the link to the 廚房彙總 page.
 from __future__ import annotations
 
 import os
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
-from bakery.changes import DATE_FIELDS, FIELD_LABELS, KIND_LABELS
+from bakery.changes import DATE_FIELDS, FIELD_LABELS, KIND_LABELS, is_suspected_reuse
+from bakery.clock import date_text
 from bakery.models import ChangeDecision, ChangeField, ChangeKind, LineStatus, ReviewStatus
 from bakery.outcome import (
     Failure,
@@ -36,9 +37,15 @@ from bakery.phone import PhoneProblem
 LINE_TEXT_LIMIT = 5000
 # Shown in errors about dates, as the format to follow.
 DATE_EXAMPLE = "2026/11/08"
-# Something broke on our side, not in the file. The webhook also sends it on its own
-# when a file could not even be kept.
-PROCESSING_FAILED = "這份檔案沒處理成功，總部已收到通知。"
+# Something broke on our side, not in the file; the original is kept and listed for 總部
+# under 處理失敗的檔案 on the 待處理 page.
+PROCESSING_FAILED = "這份檔案沒處理成功，總部已收到通知。原檔已經保存，不用重傳。"
+# Nothing could be kept, so nobody else knows: the 門市 has to send it again.
+_NOT_KEPT = "這份檔案沒處理成功，請稍後再傳一次。"
+_DOWNLOAD_FAILED = "這份檔案沒有下載成功，請再傳一次。"
+# Not a reply: what the 模擬群組上傳 page shows for a file bakery.parsing.is_template_file
+# turns down, since LINE answers nothing for it.
+NOT_A_TEMPLATE_NOTICE = "LINE 上這份檔案不會有任何回覆：不是喜餅訂單範本（找不到門市代碼與範本版本）"
 # The 廚房彙總 page (bakery.web.routes.kitchen_summary), linked at the end of every reply.
 KITCHEN_SUMMARY_PATH = "/kitchen"
 
@@ -59,14 +66,14 @@ class Reply:
 
 
 def render_reply(outcome: UploadOutcome, report_url: str) -> Reply:
-    """`report_url` is where the full list can be read when the LINE reply is cut short."""
-    head = _summary(outcome)
-    if outcome.uploader_notice is not None:
-        head = f"{uploader_notice_text(outcome.uploader_notice)}\n{head}"
-    if outcome.decisions:
-        # 總部's decisions come first of all: the 門市 is told nowhere else (no push).
-        decided = "".join(f"\n・{decision_text(d)}" for d in outcome.decisions)
-        head = f"{_DECISIONS_TITLE}{decided}\n\n{head}"
+    """`report_url` is where the full list can be read when the LINE reply is cut short.
+
+    Order: the 傳檔者 notice (always the first line), 總部's decisions (the 門市 is told
+    nowhere else: no push), the summary, then the listed items. Over LINE_TEXT_LIMIT,
+    items are cut from the end first, then decisions; the notice and summary stay."""
+    notice = uploader_notice_text(outcome.uploader_notice) if outcome.uploader_notice else None
+    decisions = [f"・{decision_text(d)}" for d in outcome.decisions]
+    summary = _summary(outcome)
     items = [(_CHANGES_TITLE, f"・{change_text(c)}") for c in outcome.changes]
     items += [(_REPEATED_TITLE, f"・{repeated_text(r)}") for r in outcome.repeated]
     items += [
@@ -75,20 +82,41 @@ def render_reply(outcome: UploadOutcome, report_url: str) -> Reply:
         for f in outcome.findings
         if f.severity == severity
     ]
-    report = with_kitchen_summary_link(_join(head, items))
+
+    def compose(kept_decisions: int, kept_items: int) -> str:
+        head = summary
+        if kept_decisions:
+            head = f"{_DECISIONS_TITLE}\n" + "\n".join(decisions[:kept_decisions]) + f"\n\n{head}"
+        if notice:
+            head = f"{notice}\n{head}"
+        text = _join(head, items[:kept_items])
+        omitted = len(decisions) - kept_decisions + len(items) - kept_items
+        if omitted:
+            text += _rest(omitted, report_url)
+        return with_kitchen_summary_link(text)
+
+    report = compose(len(decisions), len(items))
     if len(report) <= LINE_TEXT_LIMIT:
         return Reply(report, report)
 
-    def cut(kept: int) -> str:
-        rest = _rest(len(items) - kept, report_url)
-        return with_kitchen_summary_link(_join(head, items[:kept]) + rest)
+    def fits(kept_decisions: int, kept_items: int) -> bool:
+        return len(compose(kept_decisions, kept_items)) <= LINE_TEXT_LIMIT
 
-    kept = 0
-    for k in range(1, len(items) + 1):
-        if len(cut(k)) > LINE_TEXT_LIMIT:
-            break
-        kept = k
-    return Reply(cut(kept), report)
+    kept_decisions = _most(len(decisions), lambda k: fits(k, 0))
+    kept_items = _most(len(items), lambda k: fits(kept_decisions, k)) if kept_decisions == len(decisions) else 0
+    return Reply(compose(kept_decisions, kept_items), report)
+
+
+def _most(count: int, fits: Callable[[int], bool]) -> int:
+    """The largest k in 0..count with fits(k), fits being monotone (true, then false)."""
+    low, high = 0, count
+    while low < high:
+        mid = (low + high + 1) // 2
+        if fits(mid):
+            low = mid
+        else:
+            high = mid - 1
+    return low
 
 
 def site_url(path: str) -> str:
@@ -99,6 +127,16 @@ def site_url(path: str) -> str:
 def with_kitchen_summary_link(text: str) -> str:
     """`text` with the 廚房彙總 link as its last line, as every reply ends."""
     return f"{text}\n\n廚房彙總：{site_url(KITCHEN_SUMMARY_PATH)}"
+
+
+def processing_failed_reply(*, original_kept: bool) -> str:
+    """For the LINE webhook when processing broke before process_upload could reply."""
+    return with_kitchen_summary_link(PROCESSING_FAILED if original_kept else _NOT_KEPT)
+
+
+def download_failed_reply() -> str:
+    """For the LINE webhook when the file could not be fetched from LINE (no redelivery)."""
+    return with_kitchen_summary_link(_DOWNLOAD_FAILED)
 
 
 def _join(head: str, items: list[tuple[str, str]]) -> str:
@@ -118,7 +156,7 @@ def _rest(count: int, report_url: str) -> str:
 
 def _summary(outcome: UploadOutcome) -> str:
     if outcome.failure is not None and outcome.failure.kind == FailureKind.INTERNAL_ERROR:
-        return PROCESSING_FAILED + "原檔已經保存，不用重傳。"
+        return PROCESSING_FAILED
     if outcome.failure is not None:
         return f"這份檔案沒有收：{failure_text(outcome.failure)}"
     text = f"{outcome.store_name}（{outcome.store_code}）："
@@ -155,8 +193,9 @@ def _merge_summary(outcome: UploadOutcome) -> str:
     if outcome.new_order_nos:
         parts.append(f"新單 {len(outcome.new_order_nos)} 張")
     if outcome.changes:
-        part = f"修改 {len(outcome.changes)} 張"
-        held = sum(1 for c in outcome.changes if c.decision == ChangeDecision.HELD)
+        # A held 修改 with 資料更正 comes as two entries (applied, held): one order, counted once.
+        part = f"修改 {len({c.order_no for c in outcome.changes})} 張"
+        held = len({c.order_no for c in outcome.changes if c.decision == ChangeDecision.HELD})
         if held:
             part += f"，其中 {held} 張待總部確認"
         parts.append(part)
@@ -173,8 +212,10 @@ def _merge_summary(outcome: UploadOutcome) -> str:
 
 def change_text(c: OrderChange) -> str:
     """「單號 0101：追加，龍鳳喜餅 80→120 盒」: what changed, in store words."""
-    if c.kinds == (ChangeKind.SUSPECTED_REUSE,):
+    if is_suspected_reuse(c.kinds):
         return f"單號 {c.order_no}：{_reuse_text(c.diffs)}"
+    if [d.field for d in c.diffs] == [ChangeField.PHONE]:
+        return f"單號 {c.order_no} 的電話跟之前不同，已照新的電話記錄"  # FR-06's wording
     details = [text for kind in c.kinds for text in _kind_details(kind, c.diffs)]
     if c.kinds == (ChangeKind.PICKUP_DATE,):
         details = [_dates(_only(c.diffs, ChangeField.PICKUP_ON))]  # 改取貨日 already says what
@@ -187,7 +228,7 @@ def change_text(c: OrderChange) -> str:
 def repeated_text(h: HeldChange) -> str:
     """A 待確認 sent again unchanged: 「單號 0101 龍鳳喜餅 盒數 120 仍待總部確認」, or
     already 退回 and what to write back so the reminder stops."""
-    if h.kinds == (ChangeKind.SUSPECTED_REUSE,):
+    if is_suspected_reuse(h.kinds):
         if h.status == ReviewStatus.PENDING:
             return f"單號 {h.order_no}：電話不同的這份內容仍待總部確認，這張單先照舊。"
         return f"單號 {h.order_no}：電話不同的這份內容{_REUSE_REJECTED}"
@@ -199,7 +240,7 @@ def repeated_text(h: HeldChange) -> str:
 
 def decision_text(h: HeldChange) -> str:
     """總部 confirmed or 退回 a 待確認 since the 門市's last upload."""
-    if h.kinds == (ChangeKind.SUSPECTED_REUSE,):
+    if is_suspected_reuse(h.kinds):
         if h.status == ReviewStatus.CONFIRMED:
             return f"單號 {h.order_no}：電話不同的那份內容，總部確認是同一張單，已改成新的內容。"
         return f"單號 {h.order_no}：電話不同的那份內容{_REUSE_REJECTED}"
@@ -221,12 +262,12 @@ def _held_parts(diffs: Sequence[FieldDiff]) -> tuple[str, str]:
     parts: list[tuple[str, str, str]] = []
     for d in diffs:
         if d.field is ChangeField.PICKUP_ON:
-            old = _date(date.fromisoformat(d.old))
-            parts.append((f"取貨日 {_date(date.fromisoformat(d.new))}", f"取貨日 {old}", old))
+            old = _iso_date(d.old)
+            parts.append((f"取貨日 {_iso_date(d.new)}", f"取貨日 {old}", old))
     for line in _by_product([d for d in diffs if d.product_code]):
         name = line[0].product_name
-        status = next((d for d in line if d.field is ChangeField.STATUS), None)
-        quantity = next((d for d in line if d.field is ChangeField.QUANTITY), None)
+        status = _field(line, ChangeField.STATUS)
+        quantity = _field(line, ChangeField.QUANTITY)
         if status is not None and status.old is None:
             continue  # a new line already marked 取消: nothing to produce either way
         if status is not None and status.new == LineStatus.CANCELLED:
@@ -245,14 +286,12 @@ def _held_parts(diffs: Sequence[FieldDiff]) -> tuple[str, str]:
 
 
 def _reuse_text(diffs: Sequence[FieldDiff]) -> str:
-    pickup = any(d.field is ChangeField.PICKUP_ON for d in diffs)
-    lines = [d for d in diffs if d.product_code and d.kind is not ChangeKind.INFO_FIX]
+    """Phone and the set of 品項 or the 取貨日 changed (bakery.changes.detect_change)."""
     what = []
-    if pickup:
+    if any(d.field is ChangeField.PICKUP_ON for d in diffs):
         what.append("取貨日")
-    if lines:
-        new_or_cancelled = any(d.old is None or d.field is ChangeField.STATUS for d in lines)
-        what.append("品項" if new_or_cancelled else "盒數")
+    if any(d.product_code and d.kind is not ChangeKind.INFO_FIX for d in diffs):
+        what.append("品項")
     return (
         f"電話跟之前不同，{'和'.join(what)}也變了，可能是兩張不同的單用了同一個單號。"
         "這張單先照舊，待總部確認；請檢查單號有沒有重複。"
@@ -277,7 +316,7 @@ def _kind_details(kind: ChangeKind, diffs: Sequence[FieldDiff]) -> list[str]:
 
 def _cancelled_boxes(line: list[FieldDiff]) -> str:
     """The 盒數 on record that the kitchen no longer makes."""
-    quantity = next((d for d in line if d.field is ChangeField.QUANTITY), None)
+    quantity = _field(line, ChangeField.QUANTITY)
     boxes = quantity.old if quantity is not None else line[0].quantity
     return f"{line[0].product_name} {boxes} 盒"
 
@@ -285,7 +324,7 @@ def _cancelled_boxes(line: list[FieldDiff]) -> str:
 def _quantity_detail(line: list[FieldDiff]) -> str:
     """追加/減量 of one 品項: a new one, one back from 取消, or a different 盒數."""
     name = line[0].product_name
-    quantity = next((d for d in line if d.field is ChangeField.QUANTITY), None)
+    quantity = _field(line, ChangeField.QUANTITY)
     if quantity is not None and quantity.old is None:
         return f"新增{name} {quantity.new} 盒"
     if any(d.field is ChangeField.STATUS for d in line):
@@ -295,7 +334,7 @@ def _quantity_detail(line: list[FieldDiff]) -> str:
 
 def _info_detail(d: FieldDiff) -> str:
     if d.field is ChangeField.PHONE:
-        return "電話已更新"
+        return "電話跟之前不同"
     if d.field is ChangeField.QUANTITY:  # a line marked 取消 either way
         if d.old is None:
             return f"新增{d.product_name} {d.new} 盒（已標取消）"
@@ -315,9 +354,19 @@ def _only(diffs: Sequence[FieldDiff], field: ChangeField) -> FieldDiff:
     return next(d for d in diffs if d.field is field)
 
 
+def _field(line: Sequence[FieldDiff], field: ChangeField) -> FieldDiff | None:
+    """One 訂單明細's diff for `field` (盒數 or 狀態), if it changed."""
+    return next((d for d in line if d.field is field), None)
+
+
+def _iso_date(text: str) -> str:
+    """A change log date (ISO) as replies write it."""
+    return date_text(date.fromisoformat(text))
+
+
 def _dates(d: FieldDiff) -> str:
     def show(text: str | None) -> str:
-        return "空白" if text is None else _date(date.fromisoformat(text))
+        return "空白" if text is None else _iso_date(text)
 
     return f"{show(d.old)}→{show(d.new)}"
 
@@ -388,10 +437,10 @@ def finding_text(f: Finding) -> str:
         case FindingKind.LIVE_ORDER_NO:
             return f"{at}：這個單號已經有上線後收到的喜餅訂單，歷史資料不會蓋過它，整張單沒有匯入。"
         case FindingKind.PICKUP_IN_PAST:
-            return f"{at}：取貨日 {_date(d['pickup_on'])} 已經過了，已先收下，請確認日期有沒有打錯。"
+            return f"{at}：取貨日 {date_text(d['pickup_on'])} 已經過了，已先收下，請確認日期有沒有打錯。"
         case FindingKind.PICKUP_TOO_SOON:
             left = "就是今天" if d["days"] == 0 else f"只剩 {d['days']} 天"
-            return f"{at}：取貨日 {_date(d['pickup_on'])} {left}，已先收下，請確認中央廚房來得及做。"
+            return f"{at}：取貨日 {date_text(d['pickup_on'])} {left}，已先收下，請確認中央廚房來得及做。"
         case FindingKind.QUANTITY_OVER_THRESHOLD:
             return (
                 f"{at}：{d['product']} {d['quantity']} 盒比平常多很多，已先收下，"
@@ -425,15 +474,11 @@ def _at(f: Finding) -> str:
     return f"{where}（單號 {'、'.join(f.order_nos)}）" if f.order_nos else where
 
 
-def _date(d: date) -> str:
-    return f"{d.year}/{d.month:02d}/{d.day:02d}"
-
-
 def _value(v: Any) -> str:
     if v is None:
         return "空白"
     if isinstance(v, date):
-        return _date(v)
+        return date_text(v)
     return str(v)
 
 

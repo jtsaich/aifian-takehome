@@ -16,10 +16,12 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from datetime import datetime
 
-from sqlalchemy import func, select
+from openpyxl import Workbook
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from bakery.changes import apply_diffs
+from bakery.changes import FIELD_LABELS, KIND_LABELS, apply_diffs, is_suspected_reuse, show_value
+from bakery.clock import taipei_text
 from bakery.models import (
     Account,
     Change,
@@ -30,6 +32,7 @@ from bakery.models import (
     Upload,
 )
 from bakery.outcome import FieldDiff, HeldChange
+from bakery.xlsx import download_bytes, finish_sheet
 
 # A held change the 門市 can still be reminded of when it sends the same content again.
 _OPEN = (ReviewStatus.PENDING, ReviewStatus.REJECTED)
@@ -69,11 +72,11 @@ def supersede(review: PendingReview) -> None:
 
 
 def reviews(session: Session) -> list[PendingReview]:
-    """Every 待確認 still waiting (oldest first), then decided ones (latest decision first)."""
+    """Every 待確認 still waiting (oldest first), then the rest, decided or superseded
+    (latest decision first, superseded ones after them, newest first)."""
     return list(
         session.scalars(
             select(PendingReview)
-            .where(PendingReview.status != ReviewStatus.SUPERSEDED)
             .options(
                 joinedload(PendingReview.decided_by),
                 joinedload(PendingReview.change).joinedload(Change.order).joinedload(Order.store),
@@ -84,9 +87,22 @@ def reviews(session: Session) -> list[PendingReview]:
             )
             .order_by(
                 (PendingReview.status != ReviewStatus.PENDING),
-                PendingReview.decided_at.desc(),
-                PendingReview.id,
+                PendingReview.decided_at.desc().nulls_last(),
+                case((PendingReview.status == ReviewStatus.PENDING, PendingReview.id), else_=-PendingReview.id),
             )
+        )
+    )
+
+
+def failed_uploads(session: Session) -> list[Upload]:
+    """上傳 whose processing broke on our side (failure_reason set), newest first: the
+    reply told the 門市 that 總部 was notified, and this is where 總部 sees them."""
+    return list(
+        session.scalars(
+            select(Upload)
+            .where(Upload.failure_reason.is_not(None))
+            .options(joinedload(Upload.uploader))
+            .order_by(Upload.received_at.desc(), Upload.id.desc())
         )
     )
 
@@ -171,3 +187,67 @@ def _decided(
     review.decided_at = now
     session.commit()
     return review
+
+
+STATUS_LABELS: dict[ReviewStatus, str] = {
+    ReviewStatus.PENDING: "待確認",
+    ReviewStatus.CONFIRMED: "已確認",
+    ReviewStatus.REJECTED: "已退回",
+    ReviewStatus.SUPERSEDED: "被取代",
+}
+REVIEW_COLUMNS = ("狀態", "門市", "單號", "修改類型", "舊值 → 新值", "上傳", "上傳時間", "處理人", "處理時間")
+FAILED_COLUMNS = ("上傳", "收到時間", "檔名", "傳檔者", "失敗原因")
+
+
+def why_held(change: Change) -> str:
+    if is_suspected_reuse(change.change_kinds):
+        return "疑似單號重複使用，不看截止點"
+    return "已過修改截止點"
+
+
+def kinds_text(change: Change) -> str:
+    return "＋".join(KIND_LABELS[k] for k in change.change_kinds)
+
+
+def entry_text(e: ChangeEntry) -> str:
+    """「盒數（龍鳳喜餅）：80 → 120」, as the 待處理 page and its .xlsx list it."""
+    product = f"（{e.product.name}）" if e.product else ""
+    old = show_value(e.field, e.old_value) or "空白"
+    new = show_value(e.field, e.new_value) or "空白"
+    return f"{FIELD_LABELS[e.field]}{product}：{old} → {new}"
+
+
+def uploader_text(upload: Upload) -> str:
+    if upload.uploader is None:
+        return ""
+    return upload.uploader.display_name or upload.uploader.line_user_id
+
+
+def reviews_xlsx(all_reviews: Sequence[PendingReview], failed: Sequence[Upload], now: datetime) -> bytes:
+    """The 待處理 page as a workbook: every 待確認 in the page's order, and the failed 上傳."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "待處理"
+    ws.append(REVIEW_COLUMNS)
+    for r in all_reviews:
+        change, upload = r.change, r.change.upload
+        ws.append(
+            (
+                STATUS_LABELS[r.status],
+                f"{change.order.store.name}（{change.order.store_code}）",
+                change.order.order_no,
+                kinds_text(change),
+                "\n".join(entry_text(e) for e in change.entries),
+                f"上傳 #{upload.id}",
+                taipei_text(upload.received_at),
+                r.decided_by.display_name if r.decided_by else None,
+                taipei_text(r.decided_at) if r.decided_at else None,
+            )
+        )
+    finish_sheet(ws)
+    failures = wb.create_sheet("處理失敗的檔案")
+    failures.append(FAILED_COLUMNS)
+    for u in failed:
+        failures.append((f"上傳 #{u.id}", taipei_text(u.received_at), u.filename, uploader_text(u), u.failure_reason))
+    finish_sheet(failures)
+    return download_bytes(wb, now)

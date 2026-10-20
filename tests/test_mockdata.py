@@ -20,11 +20,11 @@ from bakery.mockdata import DEFAULT_SEED, generate_mock_data
 from bakery.mockdata.__main__ import main
 from bakery.mockdata.expectations import (
     REQUIRED_SEEDED,
-    ChangeKind,
     FindingKind,
     Outcome,
     Seeded,
 )
+from bakery.models import ChangeKind
 from bakery.template import COLUMNS, ORDER_COLUMNS
 
 TODAY = date(2026, 10, 21)

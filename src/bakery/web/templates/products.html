@@ -4,13 +4,15 @@
 <p class="muted">門市在範本「品項」欄寫的字，要跟品項名稱或品項別名完全一樣才收。補上品項或別名之後，門市把同一份檔案再傳一次，原本沒有收的列就會收進來。</p>
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
 <table>
-  <thead><tr><th>代碼</th><th>品項</th><th>品項別名</th>{% if can(Area.CONFIRMATIONS) %}<th>新增別名</th>{% endif %}</tr></thead>
+  <thead><tr><th>代碼</th><th>品項</th><th>品項別名</th><th>網頁上新增</th>{% if can(Area.CONFIRMATIONS) %}<th>新增別名</th>{% endif %}</tr></thead>
   <tbody>
     {% for p in products %}
+    {% set added_aliases = p.aliases|sort(attribute="id")|selectattr("created_by")|list %}
     <tr class="product">
       <td>{{ p.code }}</td>
       <td class="product-name">{{ p.name }}</td>
       <td class="aliases">{% for a in p.aliases|sort(attribute="id") %}{{ a.alias }}{% if not loop.last %}、{% endif %}{% endfor %}</td>
+      <td class="added-by muted">{% if p.created_by %}品項：{{ p.created_by.display_name }}{% if added_aliases %}；{% endif %}{% endif %}{% for a in added_aliases %}{{ a.alias }}（{{ a.created_by.display_name }}）{% if not loop.last %}、{% endif %}{% endfor %}</td>
       {% if can(Area.CONFIRMATIONS) %}
       <td>
         <form method="post" action="/products">
@@ -33,4 +35,11 @@
   <button type="submit">新增品項</button>
 </form>
 {% endif %}
+<h2>下載範本</h2>
+<p class="muted">各門市的喜餅訂單範本，品項下拉選單用上面目前的品項清單。品項清單有變動時，重新下載一份給門市即可。</p>
+<ul class="templates">
+  {% for s in stores %}
+  <li><a href="/templates/{{ s.code }}.xlsx">{{ s.name }}（{{ s.code }}）</a></li>
+  {% endfor %}
+</ul>
 {% endblock %}

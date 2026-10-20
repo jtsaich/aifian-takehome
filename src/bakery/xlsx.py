@@ -14,6 +14,7 @@ from datetime import datetime
 from pathlib import Path
 
 from openpyxl import Workbook
+from openpyxl.worksheet.worksheet import Worksheet
 from openpyxl.writer.excel import ExcelWriter
 
 _ZIP_EPOCH = (1980, 1, 1, 0, 0, 0)
@@ -41,3 +42,21 @@ def save_workbook(wb: Workbook, path: Path, timestamp: datetime) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(workbook_bytes(wb, timestamp))
     return path
+
+
+# How the web downloads (總表, 廚房彙總, 客人資料, 待處理) show dates.
+DATE_FORMAT = "yyyy/mm/dd"
+
+
+def finish_sheet(ws: Worksheet, *, date_columns: str = "", freeze: str = "A2") -> None:
+    """A downloaded table sheet: `date_columns` (letters) shown as dates below the header
+    row, and the header (plus any leading columns `freeze` names) kept in view."""
+    for col in date_columns:
+        for cell in ws[col][1:]:
+            cell.number_format = DATE_FORMAT
+    ws.freeze_panes = freeze
+
+
+def download_bytes(wb: Workbook, now: datetime) -> bytes:
+    """A web download stamped with the request time (`now` timezone-aware)."""
+    return workbook_bytes(wb, now.replace(tzinfo=None))

@@ -230,7 +230,7 @@ def _text(value: Any) -> str | None:
 
 
 def _template(store_code: str, orders: Sequence[_Order]) -> Conversion:
-    wb = t.build_template(store_by_code(store_code))
+    wb = t.build_template(store_by_code(store_code), [p.name for p in PRODUCTS])
     ws = wb[t.SHEET_NAME]
     col = {name: i for i, name in enumerate(t.COLUMNS, start=1)}
     per_day: dict[date, int] = {}

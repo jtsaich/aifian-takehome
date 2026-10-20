@@ -10,7 +10,7 @@ from fastapi.responses import HTMLResponse, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from bakery.master_list import COLUMNS, master_list, master_list_xlsx, status_text
+from bakery.master_list import COLUMNS, line_statuses, master_list, master_list_xlsx
 from bakery.models import Store
 from bakery.web.deps import date_or_none, get_now, get_session, templates, xlsx_download
 
@@ -36,7 +36,7 @@ def show(
             "store": store,
             "pickup_on": pickup,
             "columns": COLUMNS,
-            "status_text": status_text,
+            "statuses": line_statuses(session, lines),
         },
     )
 
@@ -51,5 +51,7 @@ def export(
     """The same lines as the page with the same filters."""
     lines = master_list(session, store_code=store or None, pickup_on=date_or_none(pickup_on))
     return xlsx_download(
-        master_list_xlsx(lines, now), f"總表_{now:%Y%m%d}.xlsx", f"master-list-{now:%Y%m%d}.xlsx"
+        master_list_xlsx(lines, line_statuses(session, lines), now),
+        f"總表_{now:%Y%m%d}.xlsx",
+        f"master-list-{now:%Y%m%d}.xlsx",
     )

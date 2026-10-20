@@ -47,5 +47,5 @@ def webhook(
         events = None
     if not isinstance(events, list) or not all(isinstance(e, dict) for e in events):
         return Response("bad payload", status_code=400)
-    # 500 makes LINE redeliver (when redelivery is on): only for a file not yet downloaded.
-    return Response(status_code=200 if handle_events(session, line.api, events, now) else 500)
+    handle_events(session, line.api, events, now)
+    return Response(status_code=200)
