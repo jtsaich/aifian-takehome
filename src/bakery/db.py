@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import argparse
 import os
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import Engine, create_engine
+from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.orm import Session
 
+from bakery.models import Base
 from bakery.seed import seed_demo_accounts, seed_reference_data
 
 
@@ -42,14 +44,35 @@ def upgrade_database(url: str) -> None:
     command.upgrade(alembic_config(url), "head")
 
 
-def init_main() -> None:
-    """`bakery-init`: bring the schema to head, seed reference data and the demo
-    accounts. Safe to rerun."""
-    url = database_url()
+def wipe_data(session: Session) -> None:
+    """Empty every table (the schema stays). Demo and tests only: this deletes the
+    append-only uploads and change log too (TRUNCATE bypasses their row triggers)."""
+    tables = ", ".join(t.name for t in Base.metadata.sorted_tables)
+    session.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
+
+
+def seed(session: Session) -> None:
+    seed_reference_data(session)
+    seed_demo_accounts(session)
+
+
+def init_database(url: str, *, wipe: bool = False) -> None:
+    """Bring the schema to head, optionally empty it, then seed. Safe to rerun."""
     upgrade_database(url)
     engine = make_engine(url)
     with Session(engine) as session:
-        seed_reference_data(session)
-        seed_demo_accounts(session)
+        if wipe:
+            wipe_data(session)
+        seed(session)
         session.commit()
     engine.dispose()
+
+
+def init_main(argv: list[str] | None = None) -> None:
+    """`bakery-init`: bring the schema to head, seed reference data and the demo
+    accounts. Safe to rerun. `--wipe-all-data` empties the database first (the demo
+    script's reset of the local compose database)."""
+    parser = argparse.ArgumentParser(description="資料庫升到最新版本，並種入參考資料與 demo 帳號")
+    parser.add_argument("--wipe-all-data", action="store_true", help="先清空所有資料（只給 demo 用）")
+    args = parser.parse_args(argv)
+    init_database(database_url(), wipe=args.wipe_all_data)

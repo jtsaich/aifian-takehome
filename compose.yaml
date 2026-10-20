@@ -31,6 +31,8 @@ services:
     image: bakery-orders:local
     environment:
       DATABASE_URL: postgresql://bakery:bakery@db:5432/bakery
+      # Full links in replies (廚房彙總：http://localhost:8000/kitchen), as LINE needs.
+      PUBLIC_BASE_URL: http://localhost:${APP_PORT:-8000}
     ports:
       - "${APP_PORT:-8000}:8080"
     depends_on:

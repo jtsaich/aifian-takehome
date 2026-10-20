@@ -241,8 +241,8 @@ def test_passwords_are_stored_hashed(session):
 def test_bakery_init_seeds_the_demo_accounts_and_can_rerun(monkeypatch, database_url, make_client):
     monkeypatch.setenv("DATABASE_URL", database_url)
 
-    init_main()
-    init_main()
+    init_main([])
+    init_main([])
 
     assert make_client("hq-chen").get("/orders", follow_redirects=False).status_code == 200
 
