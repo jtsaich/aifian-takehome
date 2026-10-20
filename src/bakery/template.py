@@ -2,11 +2,13 @@
 
 Layout (fixed so the parser can rely on it):
 
-- B1 門市代碼, D1 門市名稱 (display only), F1 範本版本.
+- A1/B1 門市代碼, C1/D1 門市名稱 (display only), E1/F1 範本版本.
 - Row 2: a one-line instruction for store staff.
 - Row 3: column headers. One data row = one 訂單明細, from row 4 down.
 
-Parsing (later tickets) imports the constants below instead of repeating them.
+bakery.parsing imports the labels and column names below instead of repeating them.
+The 品項 dropdown lists whatever names the caller passes: the live 品項 list from the
+database on the web (bakery.web.routes.catalog_admin), the seed catalog for mock data.
 """
 
 from __future__ import annotations
@@ -14,20 +16,33 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
+from typing import Protocol
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
-from bakery.catalog import Store, product_names
 from bakery.xlsx import save_workbook
+
+
+class StoreLike(Protocol):
+    """A 門市 as the 範本 needs it: bakery.models.Store or the seed catalog's."""
+
+    code: str
+    name: str
+
 
 TEMPLATE_VERSION = "v1"
 SHEET_NAME = "喜餅訂單"
 
+STORE_CODE_LABEL = "門市代碼"
+STORE_NAME_LABEL = "門市"
+VERSION_LABEL = "範本版本"
+
 STORE_CODE_LABEL_CELL = "A1"
 STORE_CODE_CELL = "B1"
+STORE_NAME_LABEL_CELL = "C1"
 STORE_NAME_CELL = "D1"
 VERSION_LABEL_CELL = "E1"
 VERSION_CELL = "F1"
@@ -108,8 +123,8 @@ def _list_validation(options: Sequence[str], prompt: str) -> DataValidation:
     return dv
 
 
-def build_template(store: Store, headers: Sequence[str] = COLUMNS) -> Workbook:
-    """Template workbook pre-filled with `store`'s code.
+def build_template(store: StoreLike, product_names: Sequence[str], headers: Sequence[str] = COLUMNS) -> Workbook:
+    """Template workbook pre-filled with `store`'s code; the 品項 dropdown offers `product_names`.
 
     `headers` exists so mock data can reproduce stores that reorder columns
     or add their own; the dropdowns follow the 品項 / 狀態 headers wherever
@@ -119,13 +134,13 @@ def build_template(store: Store, headers: Sequence[str] = COLUMNS) -> Workbook:
     ws = wb.active
     ws.title = SHEET_NAME
 
-    ws[STORE_CODE_LABEL_CELL] = "門市代碼"
+    ws[STORE_CODE_LABEL_CELL] = STORE_CODE_LABEL
     ws[STORE_CODE_CELL] = store.code
-    ws["C1"] = "門市"
+    ws[STORE_NAME_LABEL_CELL] = STORE_NAME_LABEL
     ws[STORE_NAME_CELL] = store.name
-    ws[VERSION_LABEL_CELL] = "範本版本"
+    ws[VERSION_LABEL_CELL] = VERSION_LABEL
     ws[VERSION_CELL] = TEMPLATE_VERSION
-    for ref in (STORE_CODE_LABEL_CELL, "C1", VERSION_LABEL_CELL):
+    for ref in (STORE_CODE_LABEL_CELL, STORE_NAME_LABEL_CELL, VERSION_LABEL_CELL):
         ws[ref].font = Font(bold=True)
 
     ws[INSTRUCTION_CELL] = INSTRUCTION_TEXT
@@ -150,7 +165,7 @@ def build_template(store: Store, headers: Sequence[str] = COLUMNS) -> Workbook:
 
         validation = None
         if header == COL_PRODUCT:
-            validation = _list_validation(product_names(), "請從清單選品項")
+            validation = _list_validation(product_names, "請從清單選品項")
         elif header == COL_STATUS:
             validation = _list_validation(STATUS_OPTIONS, "要取消才選「取消」，平常留空")
         if validation is not None:
@@ -161,5 +176,5 @@ def build_template(store: Store, headers: Sequence[str] = COLUMNS) -> Workbook:
     return wb
 
 
-def write_template(path: Path, store: Store) -> Path:
-    return save_workbook(build_template(store), Path(path), TEMPLATE_TIMESTAMP)
+def write_template(path: Path, store: StoreLike, product_names: Sequence[str]) -> Path:
+    return save_workbook(build_template(store, product_names), Path(path), TEMPLATE_TIMESTAMP)

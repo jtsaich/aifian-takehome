@@ -8,14 +8,19 @@ again only brings a reminder.
 
 from __future__ import annotations
 
+import io
 import re
 from datetime import date, timedelta
 
 import pytest
+from openpyxl import load_workbook
 from sqlalchemy import select
 
-from bakery.models import Change, LineStatus, Order, PendingReview
+from bakery import pipeline
+from bakery.models import Change, ChangeField, ChangeKind, LineStatus, Order, PendingReview, Product, ReviewStatus
+from bakery.outcome import FieldDiff, HeldChange, UploaderNotice, UploaderNoticeKind, UploadOutcome
 from bakery.pipeline import process_upload
+from bakery.reply import render_reply
 
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
@@ -116,11 +121,6 @@ def test_cutoff_is_the_nth_day_before_pickup_and_that_day_still_applies(session,
         pytest.param(
             [row("龍鳳喜餅", 80, pickup_on=FAR)], "單號 0301：改取貨日，2026/10/27→2026/11/28", id="延後取貨日"
         ),
-        pytest.param(
-            [row("龍鳳喜餅", 100, couple_names="王大明、李小華")],
-            "單號 0301：追加＋資料更正，龍鳳喜餅 80→100 盒；新人姓名 陳志豪、林佳蓉→王大明、李小華",
-            id="追加＋資料更正整筆等",
-        ),
     ],
 )
 def test_every_production_change_past_the_cutoff_waits(session, send, day2, line):
@@ -155,10 +155,33 @@ def test_info_fix_past_the_cutoff_applies_directly(session, send):
     assert _reviews(session) == []
 
 
+def test_info_fix_applies_even_when_the_production_part_waits(session, send):
+    send([row("龍鳳喜餅", 80)])
+
+    reply = send([row("龍鳳喜餅", 100, couple_names="王大明、李小華")], day=1)
+
+    assert reply.startswith(HELD_SUMMARY)
+    assert "・單號 0301：資料更正，新人姓名 陳志豪、林佳蓉→王大明、李小華\n" in reply
+    assert "・單號 0301：追加，龍鳳喜餅 80→100 盒（已過截止點，待總部確認）" in reply
+    assert _order(session).couple_names == "王大明、李小華"
+    assert _boxes(session) == {"龍鳳喜餅": (80, LineStatus.ACTIVE)}
+    logged = [(c.kinds, c.decision) for c in session.scalars(select(Change).where(Change.upload_id == 2).order_by(Change.id))]
+    assert logged == [(["info_fix"], "applied"), (["add_qty"], "held")]
+    assert _reviews(session) == [("0301", "pending")]
+    # The same file again: only the reminder, the 資料更正 is on record by now.
+    again = send([row("龍鳳喜餅", 100, couple_names="王大明、李小華")], day=2)
+    assert "・單號 0301 龍鳳喜餅 盒數 100 仍待總部確認" in again
+    assert _reviews(session) == [("0301", "pending")]
+
+
+# The phone and the set of 品項 changed: 疑似單號重複使用.
+REUSED = [row("龍鳳喜餅", 80, pickup_on=FAR, phone="0940-720-754"), row("綠豆椪禮盒", 30, pickup_on=FAR, phone="0940-720-754")]
+
+
 def test_suspected_reuse_waits_even_far_from_the_cutoff(session, send):
     send([row("龍鳳喜餅", 80, pickup_on=FAR)])
 
-    reply = send([row("龍鳳喜餅", 200, pickup_on=FAR, phone="0940-720-754")], day=1)
+    reply = send(REUSED, day=1)
 
     assert reply.startswith(HELD_SUMMARY)
     assert "可能是兩張不同的單用了同一個單號" in reply
@@ -346,10 +369,10 @@ def test_decisions_go_to_that_stores_next_upload_only(held, client, session, now
 
 def test_a_rejected_reuse_explains_what_to_do(send, client):
     send([row("龍鳳喜餅", 80, pickup_on=FAR)])
-    send([row("龍鳳喜餅", 200, pickup_on=FAR, phone="0940-720-754")], day=1)
+    send(REUSED, day=1)
     _decide(client, "reject")
 
-    reply = send([row("龍鳳喜餅", 200, pickup_on=FAR, phone="0940-720-754")], day=2)
+    reply = send(REUSED, day=2)
 
     assert reply.startswith(
         f"{DECISIONS_TITLE}\n・單號 0301：電話不同的那份內容已被總部退回，這個單號仍是原本那張單。"
@@ -378,6 +401,43 @@ def test_other_content_supersedes_a_pending_change(held, send, session, client):
     html = client.get("/reviews").text
     assert html.count('<tr class="review pending"') == 1
     assert "80 → 150" in html
+    # What happened to the first one stays visible in the history.
+    [superseded] = re.findall(r'<tr class="review superseded".*?</tr>', html, re.S)
+    assert "80 → 120" in superseded and "門市後來傳了不同的內容" in superseded
+
+
+def test_a_failed_upload_is_listed_first_on_the_pending_page(session, now, clean_file, client, monkeypatch):
+    def broken(*args, **kwargs):
+        raise RuntimeError
+
+    monkeypatch.setattr(pipeline, "merge_orders", broken)
+    result = process_upload(
+        session, uploader_line_id="Udemo-TC01", filename="TC01.xlsx", file_bytes=clean_file, now=now
+    )
+
+    html = client.get("/reviews").text
+    assert html.index("處理失敗的檔案") < html.index("等總部處理")
+    [failed] = re.findall(r'<tr class="failed-upload".*?</tr>', html, re.S)
+    assert f'href="/uploads/{result.upload_id}"' in failed
+    assert "RuntimeError" in failed
+
+
+def test_the_pending_list_downloads_as_xlsx_like_the_page(held, send, session, now, client, make_client):
+    send([row("龍鳳喜餅", 150)], day=2)  # supersedes the 120
+    _decide(client, "reject", review_id=2)
+
+    resp = make_client("owner").get("/reviews.xlsx")
+
+    assert resp.status_code == 200
+    wb = load_workbook(io.BytesIO(resp.content))
+    rows = [tuple(r) for r in wb["待處理"].iter_rows(values_only=True)]
+    assert rows[0] == ("狀態", "門市", "單號", "修改類型", "舊值 → 新值", "上傳", "上傳時間", "處理人", "處理時間")
+    statuses = [(r[0], r[2], r[4]) for r in rows[1:]]
+    assert statuses == [
+        ("已退回", "0301", "盒數（龍鳳喜餅）：80 → 150"),
+        ("被取代", "0301", "盒數（龍鳳喜餅）：80 → 120"),
+    ]
+    assert rows[1][7] == "林雅文（總部）"
 
 
 def test_sending_the_order_back_as_on_record_withdraws_a_pending_change(held, send, session):
@@ -454,3 +514,65 @@ def test_only_hq_maintains_products_and_cutoff(make_client, session):
         assert c.post("/settings", data={"cutoff": "3"}).status_code == 403
     assert make_client("kitchen").get("/products").status_code == 403
     assert re.search(r'class="cutoff-days">7<', owner.get("/settings").text)
+
+
+def test_admin_writes_record_the_account_and_show_it(make_client, session):
+    chen = make_client("hq-chen")
+    chen.post("/products", data={"kind": "product", "name": "芋頭酥禮盒"})
+    make_client("hq-lin").post("/products", data={"kind": "alias", "product_code": "P08", "name": "芋頭酥"})
+    chen.post("/settings", data={"cutoff": "5"})
+
+    session.expire_all()
+    product = session.get(Product, "P08")
+    assert product.created_by.username == "hq-chen"
+    assert product.aliases[0].created_by.username == "hq-lin"
+    owner = make_client("owner")
+    [p08] = re.findall(r'<tr class="product">\s*<td>P08</td>.*?</tr>', owner.get("/products").text, re.S)
+    assert "陳志明（總部）" in p08 and "芋頭酥（林雅文（總部））" in p08
+    assert "陳志明（總部）" in owner.get("/settings").text
+
+
+# --- 總部's decisions in the reply ------------------------------------------------------
+
+
+def test_a_new_uploader_reads_the_binding_notice_first_then_the_decisions(held, client, session, now, make_template_file):
+    _decide(client, "confirm")
+
+    reply = process_upload(
+        session,
+        uploader_line_id="Udemo-TC01-meiling",  # not bound yet
+        filename="TC01.xlsx",
+        file_bytes=make_template_file("TC01", [row("龍鳳喜餅", 120)]),
+        now=now + timedelta(days=2),
+    ).reply_text
+
+    notice, decisions, rest = reply.split("\n", 2)
+    assert notice == "已記錄您為 台中中正店（待總部確認）"
+    assert decisions == DECISIONS_TITLE
+    assert rest.startswith("・單號 0301 龍鳳喜餅 盒數 120：總部已確認")
+
+
+def test_the_whole_reply_fits_line_even_with_many_decisions(monkeypatch):
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://bakery.example")
+    diffs = (FieldDiff(ChangeField.QUANTITY, "80", "120", product_code="P01", product_name="龍鳳喜餅"),)
+    decided = tuple(
+        HeldChange(f"{n:04d}", (ChangeKind.ADD_QTY,), diffs, ReviewStatus.CONFIRMED) for n in range(400)
+    )
+    outcome = UploadOutcome(
+        store_code="TC01",
+        store_name="台中中正店",
+        order_count=1,
+        line_count=1,
+        new_order_nos=("0999",),
+        decisions=decided,
+        uploader_notice=UploaderNotice(UploaderNoticeKind.NEW_BINDING, store_name="台中中正店"),
+    )
+
+    reply = render_reply(outcome, report_url="https://bakery.example/uploads/9")
+
+    assert len(reply.text) <= 5000
+    assert reply.text.startswith(f"已記錄您為 台中中正店（待總部確認）\n{DECISIONS_TITLE}\n・單號 0000 ")
+    assert "台中中正店（TC01）：" in reply.text  # the summary survives the cut
+    m = re.search(r"\n\n其餘 (\d+) 項請看網頁：https://bakery.example/uploads/9\n\n廚房彙總：", reply.text)
+    assert int(m[1]) + reply.text.count("：總部已確認") == 400
+    assert reply.report.count("：總部已確認") == 400

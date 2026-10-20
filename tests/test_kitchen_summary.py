@@ -36,8 +36,11 @@ CH01_ROWS = [
     _row("C-1", "綠豆椪禮盒", 10, pickup_on=date(2026, 10, 30), phone="0933-444-555"),
     _row("C-2", "鳳梨酥禮盒", 60, pickup_on=date(2026, 11, 1), phone="0955-666-777"),
 ]
-# 0302 again with another phone and more boxes: a 疑似單號重複使用, held for 總部.
-TC01_REUSED = [_row("0302", "龍鳳喜餅", 90, pickup_on=date(2026, 10, 30), phone="0988-000-111")]
+# 0302 again with another phone and another 品項: a 疑似單號重複使用, held for 總部.
+TC01_REUSED = [
+    _row("0302", "龍鳳喜餅", 90, pickup_on=date(2026, 10, 30), phone="0988-000-111"),
+    _row("0302", "綠豆椪禮盒", 30, pickup_on=date(2026, 10, 30), phone="0988-000-111"),
+]
 
 HEADER = ["取貨日", "星期", "門市", "龍鳳喜餅", "鳳梨酥禮盒", "綠豆椪禮盒", "合計"]
 

@@ -18,77 +18,92 @@ from datetime import datetime
 from typing import Any
 
 import httpx
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from bakery.line import LineApi
-from bakery.models import LineWebhookEvent, Upload, Uploader
+from bakery.models import LineWebhookEvent, Uploader
 from bakery.parsing import is_template_file
-from bakery.pipeline import process_upload
-from bakery.reply import PROCESSING_FAILED, with_kitchen_summary_link
+from bakery.pipeline import keep_failed_original, process_upload
+from bakery.reply import download_failed_reply, processing_failed_reply
 
 log = logging.getLogger(__name__)
 
-_FILENAME_MAX = Upload.__table__.c.filename.type.length
 
-
-def handle_events(session: Session, api: LineApi, events: Iterable[Mapping[str, Any]], now: datetime) -> bool:
-    """Handle every file message. False if one should come again: its file could not be
-    downloaded, so the event was released for LINE to redeliver."""
-    ok = True
+def handle_events(session: Session, api: LineApi, events: Iterable[Mapping[str, Any]], now: datetime) -> None:
+    """Handle every file message. Each one is answered: LINE redelivery is off by default,
+    so an error response would lose the file without a word."""
     for event in events:
         message = event.get("message") or {}
         if event.get("type") == "message" and message.get("type") == "file":
-            ok = _handle_file(session, api, event, message, now) and ok
-    return ok
+            _handle_file(session, api, event, message, now)
 
 
 def _handle_file(
     session: Session, api: LineApi, event: Mapping[str, Any], message: Mapping[str, Any], now: datetime
-) -> bool:
+) -> None:
     event_id = event.get("webhookEventId")
     if event_id is not None and not _claim(session, event_id, now):
         log.info("event %s already taken, skipped", event_id)
-        return True
+        return
+    reply_token = event.get("replyToken")
 
     try:
         content = api.get_content(message["id"])
     except httpx.HTTPError as exc:
         log.error("event %s: downloading message %s failed: %s", event_id, message["id"], _why(exc))
         if event_id is not None:
-            _release(session, event_id)
-        return False
+            session.get(LineWebhookEvent, event_id).download_failed = True
+            session.commit()
+        _reply(api, reply_token, download_failed_reply(), event_id)
+        return
     if not is_template_file(content):
         log.info("event %s: message %s is not a 範本, no reply", event_id, message["id"])
-        return True
+        return
 
     source = event.get("source") or {}
     user_id = source.get("userId")
-    reply_token = event.get("replyToken")
+    filename = message.get("fileName") or "line.xlsx"
     try:
         if user_id:
             _remember_uploader(session, api, user_id, source)
-        result = process_upload(
-            session,
-            uploader_line_id=user_id,
-            filename=(message.get("fileName") or "line.xlsx")[:_FILENAME_MAX],
-            file_bytes=content,
-            now=now,
-        )
+        result = process_upload(session, uploader_line_id=user_id, filename=filename, file_bytes=content, now=now)
     except Exception as exc:
-        # process_upload handles bad files itself; this is the database or the like failing.
-        session.rollback()
-        log.error("event %s: the file could not be kept: %s", event_id, type(exc).__name__)
-        _reply(api, reply_token, with_kitchen_summary_link(PROCESSING_FAILED), event_id)
-        return True
+        # process_upload handles bad files itself; this failed before it kept the original.
+        log.error("event %s: processing failed before the file was kept: %s", event_id, type(exc).__name__)
+        upload_id = _keep_original(session, user_id, filename, content, now, exc, event_id)
+        if upload_id is not None and event_id is not None:
+            session.get(LineWebhookEvent, event_id).upload_id = upload_id
+            session.commit()
+        _reply(api, reply_token, processing_failed_reply(original_kept=upload_id is not None), event_id)
+        return
 
     if event_id is not None:
         session.get(LineWebhookEvent, event_id).upload_id = result.upload_id
         session.commit()
     log.info("event %s: upload %s processed", event_id, result.upload_id)
     _reply(api, reply_token, result.reply_text, event_id)
-    return True
+
+
+def _keep_original(
+    session: Session,
+    user_id: str | None,
+    filename: str,
+    content: bytes,
+    now: datetime,
+    exc: Exception,
+    event_id: str | None,
+) -> int | None:
+    """The failed file kept with its reason, or None when even that failed."""
+    try:
+        return keep_failed_original(
+            session, uploader_line_id=user_id, filename=filename, file_bytes=content, now=now, exc=exc
+        )
+    except Exception as again:
+        session.rollback()
+        log.error("event %s: the file could not be kept: %s", event_id, type(again).__name__)
+        return None
 
 
 def _claim(session: Session, event_id: str, now: datetime) -> bool:
@@ -101,11 +116,6 @@ def _claim(session: Session, event_id: str, now: datetime) -> bool:
     )
     session.commit()
     return claimed is not None
-
-
-def _release(session: Session, event_id: str) -> None:
-    session.execute(delete(LineWebhookEvent).where(LineWebhookEvent.webhook_event_id == event_id))
-    session.commit()
 
 
 def _remember_uploader(session: Session, api: LineApi, user_id: str, source: Mapping[str, Any]) -> None:

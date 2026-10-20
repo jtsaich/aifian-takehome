@@ -17,7 +17,7 @@ from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from testcontainers.postgres import PostgresContainer
 
-from bakery.catalog import store_by_code
+from bakery.catalog import product_names, store_by_code
 from bakery.clock import TAIPEI
 from bakery.db import seed, upgrade_database, wipe_data
 from bakery.seed import DEMO_PASSWORD
@@ -108,7 +108,7 @@ CLEAN_ROWS: tuple[tuple, ...] = (
 
 def template_file(store_code: str, rows: Sequence[Sequence]) -> bytes:
     """A 範本 .xlsx for `store_code` with `rows` (in COLUMNS order) from the first data row."""
-    wb = build_template(store_by_code(store_code))
+    wb = build_template(store_by_code(store_code), product_names())
     ws = wb[SHEET_NAME]
     for r, values in enumerate(rows, start=FIRST_DATA_ROW):
         for c, value in enumerate(values, start=1):

@@ -28,8 +28,8 @@ from bakery.parsing import (
     ParsedFile,
     ProductLookup,
     ProductRef,
-    group_rows,
     parse_upload,
+    rejected_rows,
     sort_findings,
 )
 from bakery.reply import render_reply, site_url
@@ -69,15 +69,13 @@ def process_upload(
     if historical and uploader_line_id is not None:
         raise ValueError("a 歷史資料匯入 has no 傳檔者")
     uploader = _uploader(session, uploader_line_id) if uploader_line_id else None
-    upload = Upload(
+    upload = _new_upload(
         uploader=uploader,
         submitted_by_id=submitted_by_id,
         is_historical=historical,
         filename=filename,
-        content=file_bytes,
-        size_bytes=len(file_bytes),
-        sha256=hashlib.sha256(file_bytes).hexdigest(),
-        received_at=now,
+        file_bytes=file_bytes,
+        now=now,
     )
     session.add(upload)
     session.commit()
@@ -93,6 +91,17 @@ def process_upload(
         log.error("processing upload %s failed: %s", upload.id, upload.failure_reason)
         outcome = _failed(Failure(FailureKind.INTERNAL_ERROR))
 
+    try:
+        return _finish(session, upload, outcome, historical=historical)
+    except Exception as exc:
+        # Storing the merge or the reply failed: the original is kept, so keep why too.
+        session.rollback()
+        upload.failure_reason = _failure_reason(exc)
+        log.error("finishing upload %s failed: %s", upload.id, upload.failure_reason)
+        return _finish(session, upload, _failed(Failure(FailureKind.INTERNAL_ERROR)), historical=historical)
+
+
+def _finish(session: Session, upload: Upload, outcome: UploadOutcome, *, historical: bool) -> ProcessResult:
     reply = render_reply(outcome, report_url=site_url(f"/uploads/{upload.id}"))
     reply_text = None if historical else reply.text
     upload.store_code = outcome.store_code
@@ -101,6 +110,55 @@ def process_upload(
     session.commit()
     return ProcessResult(
         upload_id=upload.id, reply_text=reply_text, report_text=reply.report, outcome=outcome
+    )
+
+
+def keep_failed_original(
+    session: Session,
+    *,
+    uploader_line_id: str | None,
+    filename: str,
+    file_bytes: bytes,
+    now: datetime,
+    exc: Exception,
+) -> int:
+    """For a failure before process_upload committed the original: keep it now, in a fresh
+    transaction, with the reason, so it is listed on the 待處理 page. Returns its id."""
+    session.rollback()
+    uploader = (
+        session.scalar(select(Uploader).where(Uploader.line_user_id == uploader_line_id))
+        if uploader_line_id
+        else None
+    )
+    upload = _new_upload(uploader=uploader, filename=filename, file_bytes=file_bytes, now=now)
+    upload.failure_reason = _failure_reason(exc)
+    session.add(upload)
+    session.commit()
+    log.error("upload %s kept after a failure: %s", upload.id, upload.failure_reason)
+    return upload.id
+
+
+_FILENAME_MAX = Upload.__table__.c.filename.type.length
+
+
+def _new_upload(
+    *,
+    uploader: Uploader | None,
+    filename: str,
+    file_bytes: bytes,
+    now: datetime,
+    submitted_by_id: int | None = None,
+    is_historical: bool = False,
+) -> Upload:
+    return Upload(
+        uploader=uploader,
+        submitted_by_id=submitted_by_id,
+        is_historical=is_historical,
+        filename=filename[:_FILENAME_MAX],
+        content=file_bytes,
+        size_bytes=len(file_bytes),
+        sha256=hashlib.sha256(file_bytes).hexdigest(),
+        received_at=now,
     )
 
 
@@ -167,14 +225,13 @@ def _without_live_orders(session: Session, store_code: str, parsed: ParsedFile) 
         return parsed
     refused = [o for o in parsed.orders if o.order_no in live]
     errors = [Finding(FindingKind.LIVE_ORDER_NO, Severity.ERROR, o.locations, (o.order_no,)) for o in refused]
-    position = {name: i for i, name in enumerate(parsed.sheet_names)}
     rejected = {(loc.sheet, r) for loc in parsed.rejected_rows for r in loc.rows}
     rejected |= {(line.sheet, line.row) for o in refused for line in o.lines}
     return replace(
         parsed,
         orders=tuple(o for o in parsed.orders if o.order_no not in live),
         findings=sort_findings([*parsed.findings, *errors], parsed.sheet_names),
-        rejected_rows=group_rows(sorted(rejected, key=lambda sr: (position[sr[0]], sr[1]))),
+        rejected_rows=rejected_rows(rejected, parsed.sheet_names),
     )
 
 

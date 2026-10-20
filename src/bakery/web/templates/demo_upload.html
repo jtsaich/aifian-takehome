@@ -17,6 +17,12 @@
   <button type="submit">傳到群組</button>
 </form>
 
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+{% if no_reply %}
+<h2>群組裡收到的回覆</h2>
+<p class="muted">{{ filename }}</p>
+<p class="no-reply">{{ no_reply }}</p>
+{% endif %}
 {% if result %}
 <h2>群組裡收到的回覆</h2>
 <p class="muted">{{ filename }}</p>

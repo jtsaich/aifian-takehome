@@ -3,9 +3,11 @@ checked on every upload whichever way the file arrives (LINE or the demo page)."
 
 from __future__ import annotations
 
+import io
 import re
 
 import pytest
+from openpyxl import load_workbook
 from sqlalchemy import select
 
 from bakery import pipeline
@@ -195,3 +197,23 @@ def test_the_seeded_demo_store_accounts_start_confirmed(session):
     confirmed = session.scalars(select(StoreBinding).where(StoreBinding.status == BindingStatus.CONFIRMED)).all()
 
     assert sorted(b.store_code for b in confirmed) == ["CH01", "CH02", "NT01", "TC01", "TC02", "TC03"]
+
+
+def _master_statuses(client, path="/orders") -> dict[str, str]:
+    html = client.get(path).text
+    return dict(re.findall(r'<td class="order-no">(?:<a [^>]*>)?(\d+)(?:</a>)?</td>.*?<td class="status">(.*?)</td>', html, re.S))
+
+
+def test_master_list_marks_orders_from_an_uploader_still_pending(client, session, now, pending, make_template_file):
+    # 0201/0202 came from 美玲 (pending); 0301 from the confirmed store account.
+    upload(session, now, make_template_file("TC01", [("0301", "林小姐", "0911-111-111", now.date(), now.date().replace(month=12), None, None, None, "龍鳳喜餅", 50, None, None)]), "Udemo-TC01")
+
+    statuses = _master_statuses(client)
+    assert statuses["0201"] == statuses["0202"] == "傳檔者待確認"
+    assert statuses["0301"] == ""
+    wb = load_workbook(io.BytesIO(client.get("/orders.xlsx").content))
+    rows = {r[2]: r[5] for r in wb.active.iter_rows(min_row=2, values_only=True)}
+    assert rows["0201"] == "傳檔者待確認" and rows["0301"] is None
+
+    client.post("/bindings", data={"uploader_id": pending, "store_code": "TC01"})
+    assert _master_statuses(client)["0201"] == ""

@@ -18,7 +18,7 @@ from sqlalchemy import ColumnElement, Select, select
 from sqlalchemy.orm import Session, joinedload
 
 from bakery.models import Change, LineStatus, Order, OrderLine, PendingReview, Product, ReviewStatus, Store
-from bakery.xlsx import workbook_bytes
+from bakery.xlsx import download_bytes, finish_sheet
 
 DEFAULT_DAYS = 14  # from today, today included
 ALL_STORES = "全部門市"
@@ -158,7 +158,6 @@ def _row(pickup_on: date, store: Store | None, cells: dict[str, Boxes]) -> Summa
     return SummaryRow(pickup_on, store, cells, total)
 
 
-_DATE_FORMAT = "yyyy/mm/dd"
 _PENDING_FILL = PatternFill("solid", fgColor="FFF3CD")
 
 
@@ -182,7 +181,6 @@ def kitchen_summary_xlsx(summary: KitchenSummary, now: datetime) -> bytes:
                 )
             )
             r = ws.max_row
-            ws.cell(r, 1).number_format = _DATE_FORMAT
             for col, boxes in enumerate(cells, start=4):
                 if boxes is not None and boxes.pending:
                     cell = ws.cell(r, col)
@@ -194,12 +192,11 @@ def kitchen_summary_xlsx(summary: KitchenSummary, now: datetime) -> bytes:
             else:
                 ws.row_dimensions[r].outlineLevel = 1
                 ws.row_dimensions[r].hidden = True
-    ws.freeze_panes = "D2"
+    finish_sheet(ws, date_columns="A", freeze="D2")
 
     pending = wb.create_sheet(PENDING_SHEET)
     pending.append(PENDING_COLUMNS)
     for o in summary.pending_orders:
         pending.append((o.pickup_on, o.store.name, o.order_no))
-        pending.cell(pending.max_row, 1).number_format = _DATE_FORMAT
-    pending.freeze_panes = "A2"
-    return workbook_bytes(wb, now.replace(tzinfo=None))
+    finish_sheet(pending, date_columns="A")
+    return download_bytes(wb, now)

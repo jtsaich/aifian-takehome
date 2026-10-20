@@ -59,6 +59,14 @@ def test_reply_names_the_store_and_counts_orders_and_lines(session, now, clean_f
     assert result.reply_text == "台中中正店（TC01）：收到 2 張喜餅訂單、3 筆訂單明細。\n\n廚房彙總：/kitchen"
 
 
+def test_an_overlong_filename_is_cut_to_what_the_column_holds(session, now, clean_file):
+    result = _upload(session, now, clean_file, filename="喜" * 300 + ".xlsx")
+
+    upload = session.get(Upload, result.upload_id)
+    assert upload.filename == "喜" * 255
+    assert result.outcome.order_count == 2
+
+
 def test_original_file_is_kept_byte_for_byte_with_uploader_and_time(session, now, clean_file):
     result = _upload(session, now, clean_file, filename="門市檔案.xlsx")
 

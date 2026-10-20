@@ -141,8 +141,13 @@ def test_same_phone_written_differently_is_not_a_change(session, send):
         ),
         pytest.param(
             [row("龍鳳喜餅", 80, phone="0933-222-111")],
-            "單號 0301：資料更正，電話已更新",
+            "單號 0301 的電話跟之前不同，已照新的電話記錄",
             id="資料更正-只改電話",
+        ),
+        pytest.param(
+            [row("龍鳳喜餅", 200, phone="0940-720-754")],
+            "單號 0301：追加＋資料更正，龍鳳喜餅 80→200 盒；電話跟之前不同",
+            id="電話和盒數不是疑似單號重複使用",
         ),
         pytest.param(
             [row("龍鳳喜餅", 80, banquet_on=None, note="要提袋")],
@@ -214,9 +219,14 @@ def test_new_and_changed_orders_are_counted_apart(session, send):
             id="取貨日",
         ),
         pytest.param(
-            [row("龍鳳喜餅", 200, phone="0940-720-754")],
-            "盒數",
-            id="盒數",
+            [row("龍鳳喜餅", 80, phone="0940-720-754"), row("綠豆椪禮盒", 30, phone="0940-720-754")],
+            "品項",
+            id="多了品項",
+        ),
+        pytest.param(
+            [row("龍鳳喜餅", 80, phone="0940-720-754", status="取消")],
+            "品項",
+            id="取消品項",
         ),
     ],
 )

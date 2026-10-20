@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 
 from bakery.models import LineStatus, Order, Store
 from bakery.phone import normalize_phone
-from bakery.xlsx import workbook_bytes
+from bakery.xlsx import download_bytes, finish_sheet
 
 
 @dataclass(frozen=True)
@@ -129,7 +129,6 @@ CUSTOMER_COLUMNS = (
     "電話", "訂單數", "總盒數", "第一次接單日", "最近一次接單日", "下過單的門市", "訂購人姓名", "姓名不一致",
 )
 ORDER_COLUMNS = ("電話", "門市", "單號", "接單日", "取貨日", "訂購人姓名", "電話（原始寫法）", "盒數", "狀態")
-_DATE_FORMAT = "yyyy/mm/dd"
 
 
 def customer_records_xlsx(records: CustomerRecords, now: datetime) -> bytes:
@@ -169,11 +168,8 @@ def customer_records_xlsx(records: CustomerRecords, now: datetime) -> bytes:
                 )
             )
     for ws in (people, orders):
-        for col in "DE":  # the two date columns of both sheets
-            for cell in ws[col][1:]:
-                cell.number_format = _DATE_FORMAT
-        ws.freeze_panes = "A2"
-    return workbook_bytes(wb, now.replace(tzinfo=None))
+        finish_sheet(ws, date_columns="DE")  # the two date columns of both sheets
+    return download_bytes(wb, now)
 
 
 def _boxes(order: Order) -> int:

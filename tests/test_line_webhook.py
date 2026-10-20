@@ -20,7 +20,7 @@ from sqlalchemy import select
 from bakery import pipeline
 from bakery.line import LineApi, LineChannel, sign
 from bakery.models import BindingStatus, LineWebhookEvent, Order, StoreBinding, Upload, Uploader
-from bakery.reply import PROCESSING_FAILED
+from bakery.reply import download_failed_reply, processing_failed_reply
 from bakery.web.app import create_app
 from bakery.web.deps import get_now
 from bakery.web.routes.line_webhook import get_line
@@ -176,18 +176,23 @@ def test_a_redelivered_event_is_processed_only_once(webhook, line, session, clea
     assert event.upload_id == session.scalars(select(Upload)).one().id
 
 
-def test_a_file_that_could_not_be_downloaded_is_left_for_redelivery(webhook, line, session, clean_file):
+def test_a_file_that_could_not_be_downloaded_is_answered_and_the_event_recorded_failed(
+    webhook, line, session, clean_file
+):
+    """LINE redelivery is off by default: a 500 would lose the file without a word."""
     line.contents["msg1"] = clean_file
     line.unavailable.add("msg1")
 
-    assert post(webhook, file_event(1)).status_code == 500
+    assert post(webhook, file_event(1)).status_code == 200
     assert session.scalars(select(Upload)).all() == []
-    assert line.replies == []
+    assert line.reply_texts == [download_failed_reply()]
+    assert line.reply_texts[0].startswith("這份檔案沒有下載成功，請再傳一次。")
+    event = session.get(LineWebhookEvent, file_event(1)["webhookEventId"])
+    assert event.download_failed and event.upload_id is None
 
     line.unavailable.clear()
     assert post(webhook, file_event(1, redelivery=True)).status_code == 200
-    assert len(session.scalars(select(Upload)).all()) == 1
-    assert len(line.replies) == 1
+    assert len(line.replies) == 1  # taken once, like any other event
 
 
 @pytest.mark.parametrize(
@@ -278,6 +283,25 @@ def test_a_processing_failure_is_answered_and_the_original_and_reason_kept(
     assert session.scalars(select(Order)).all() == []
 
 
+def test_a_failure_before_the_original_was_kept_still_keeps_it_with_the_reason(
+    webhook, line, session, clean_file, monkeypatch
+):
+    def broken(*args, **kwargs):
+        raise ConnectionError("0912-345-678")
+
+    monkeypatch.setattr(pipeline, "_uploader", broken)  # fails before the Upload row commits
+
+    assert send(webhook, line, 1, clean_file, user_id="Udemo-TC01").status_code == 200
+
+    assert line.reply_texts == [processing_failed_reply(original_kept=True)]
+    upload = session.scalars(select(Upload)).one()
+    assert upload.content == clean_file and upload.filename == "TC01.xlsx"
+    assert upload.failure_reason.startswith("ConnectionError（")
+    assert "0912" not in upload.failure_reason
+    event = session.get(LineWebhookEvent, file_event(1)["webhookEventId"])
+    assert event.upload_id == upload.id
+
+
 def test_if_even_the_original_cannot_be_kept_the_store_still_gets_an_answer(
     webhook, line, session, clean_file, monkeypatch
 ):
@@ -285,9 +309,11 @@ def test_if_even_the_original_cannot_be_kept_the_store_still_gets_an_answer(
         raise ConnectionError
 
     monkeypatch.setattr("bakery.line_webhook.process_upload", database_down)
+    monkeypatch.setattr("bakery.line_webhook.keep_failed_original", database_down)
 
     assert send(webhook, line, 1, clean_file).status_code == 200
-    assert line.reply_texts == [f"{PROCESSING_FAILED}\n\n廚房彙總：/kitchen"]
+    assert line.reply_texts == [processing_failed_reply(original_kept=False)]
+    assert line.reply_texts[0].startswith("這份檔案沒處理成功，請稍後再傳一次。")  # nothing kept to notify about
 
 
 def test_logs_never_carry_names_or_phones(webhook, line, session, monkeypatch, make_template_file, caplog):
@@ -323,7 +349,7 @@ def _demo_page_reply(client: TestClient, uploader: str, path: Path) -> str:
 @pytest.mark.parametrize(
     ("uploader", "path"),
     [
-        pytest.param("Unew0001", TC01_DAY1, id="first-time-uploader"),
+        pytest.param("Udemo-TC01-meiling", TC01_DAY1, id="first-time-uploader"),
         pytest.param("Udemo-CH01", TC01_DAY1, id="other-store-uploader"),
         pytest.param("Udemo-NT01", MOCK / "day1" / "NT01_草屯和平店.xlsx", id="bound-uploader"),
     ],
@@ -338,3 +364,32 @@ def test_the_line_reply_is_identical_to_the_simulated_upload_page(
     page_reply = _demo_page_reply(make_client("hq-lin"), uploader, path)
 
     assert page_reply == line_reply
+
+
+def test_the_demo_page_says_line_would_not_answer_a_file_that_is_not_a_template(make_client, session):
+    legacy = MOCK / "legacy" / "TC02_台中北屯店_舊訂單.xlsx"
+
+    page = make_client("hq-lin").post(
+        "/demo/upload",
+        data={"uploader_line_id": "Udemo-TC02"},
+        files={"file": (legacy.name, legacy.read_bytes(), "application/octet-stream")},
+    ).text
+
+    assert "LINE 上這份檔案不會有任何回覆：不是喜餅訂單範本（找不到門市代碼與範本版本）" in page
+    assert '<div class="reply">' not in page
+    assert session.scalars(select(Upload)).all() == []
+
+
+def test_the_demo_page_only_sends_as_a_demo_uploader(make_client, session, clean_file):
+    session.add(Uploader(line_user_id="Ureal0001", display_name="真的門市"))
+    session.commit()
+
+    resp = make_client("hq-lin").post(
+        "/demo/upload",
+        data={"uploader_line_id": "Ureal0001"},
+        files={"file": ("TC01.xlsx", clean_file, "application/octet-stream")},
+    )
+
+    assert resp.status_code == 422
+    assert "只能選 demo 傳檔者" in resp.text
+    assert session.scalars(select(Upload)).all() == []

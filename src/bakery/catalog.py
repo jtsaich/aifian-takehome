@@ -1,8 +1,8 @@
 """Seed data for 品項 (with 品項別名) and 門市.
 
-Single source of truth: the template dropdowns, the mock data and (later) the
-database seed all read from here. After go-live HQ maintains products in the
-web admin; this module is only the initial seed.
+Read by the database seed (bakery.seed), the mock data generator and the offline
+舊格式 converter. Once running, 總部 maintains 品項 on the web and the 範本 they
+download is built from the database (bakery.web.routes.catalog_admin), not from here.
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ STORES: tuple[Store, ...] = (
 
 
 def product_names() -> list[str]:
-    """Canonical 品項 names, in catalog order (what the template dropdown shows)."""
+    """Seed 品項 names, in catalog order (the mock data 範本's dropdown)."""
     return [p.name for p in PRODUCTS]
 
 
