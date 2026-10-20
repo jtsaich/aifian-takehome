@@ -47,7 +47,7 @@
   </h3>
   <p>
     <a href="/uploads/{{ upload.id }}">上傳 #{{ upload.id }}</a>　{{ upload.filename }}　
-    傳檔者：{{ upload.uploader.display_name or upload.uploader.line_user_id }}　
+    傳檔者：{{ (upload.uploader.display_name or upload.uploader.line_user_id) if upload.uploader else "（認不出的 LINE 帳號）" }}　
     送出方式：{{ "模擬群組上傳：" ~ upload.submitted_by.display_name if upload.submitted_by else "LINE" }}
   </p>
   <table>
