@@ -30,6 +30,19 @@ def history(request: Request, session: Annotated[Session, Depends(get_session)])
     return templates.TemplateResponse(request, "uploads.html", {"uploads": uploads})
 
 
+@router.get("/uploads/{upload_id}", response_class=HTMLResponse)
+def detail(
+    upload_id: int, request: Request, session: Annotated[Session, Depends(get_session)]
+) -> HTMLResponse:
+    """One upload with its full reply: where a LINE reply cut at 5,000 characters links to."""
+    upload = session.get(
+        Upload, upload_id, options=[joinedload(Upload.uploader), joinedload(Upload.store)]
+    )
+    if upload is None:
+        raise HTTPException(status_code=404)
+    return templates.TemplateResponse(request, "upload_detail.html", {"upload": upload})
+
+
 @router.get("/uploads/{upload_id}/original")
 def original(upload_id: int, session: Annotated[Session, Depends(get_session)]) -> Response:
     upload = session.get(Upload, upload_id, options=[undefer(Upload.content)])

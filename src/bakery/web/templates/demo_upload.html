@@ -21,6 +21,6 @@
 <h2>群組裡收到的回覆</h2>
 <p class="muted">{{ filename }}</p>
 <div class="reply">{{ result.reply_text }}</div>
-<p><a href="/orders?store={{ result.outcome.store_code }}">看這家門市的總表</a>　<a href="/uploads">上傳紀錄</a></p>
+<p>{% if result.outcome.store_code %}<a href="/orders?store={{ result.outcome.store_code }}">看這家門市的總表</a>　{% endif %}<a href="/uploads/{{ result.upload_id }}">這次上傳的完整回覆</a>　<a href="/uploads">上傳紀錄</a></p>
 {% endif %}
 {% endblock %}

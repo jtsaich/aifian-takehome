@@ -68,3 +68,18 @@ def test_upload_history_offers_the_original_file_for_download(client, clean_file
     assert resp.status_code == 200
     assert resp.content == clean_file
     assert quote("中正店 10月.xlsx") in resp.headers["content-disposition"]
+
+
+def test_upload_page_lists_every_problem_a_cut_line_reply_left_out(client, make_template_file):
+    rows = [
+        (f"9{i:03d}", "王小姐", "0912-345-678", date(2026, 10, 20), date(2026, 11, 28), None,
+         None, None, f"不存在的品項{i}", 10, None, None)
+        for i in range(400)
+    ]
+    reply = _post_upload(client, make_template_file("TC01", rows)).text
+    link = re.search(r'href="(/uploads/\d+)">這次上傳的完整回覆', reply)[1]
+
+    page = client.get(link).text
+
+    assert reply.count("不在商品清單裡") < 400
+    assert all(f"不存在的品項{i}」" in page for i in range(400))

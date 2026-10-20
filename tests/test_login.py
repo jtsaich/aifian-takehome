@@ -29,6 +29,7 @@ PUBLIC = {("GET", "/"), ("GET", "/login"), ("POST", "/login"), ("POST", "/logout
 PAGES: dict[str, set[str]] = {
     "/orders": {"hq-lin", "hq-chen", "kitchen", "owner"},
     "/uploads": {"hq-lin", "hq-chen", "owner"},
+    "/uploads/{upload_id}": {"hq-lin", "hq-chen", "owner"},
     "/uploads/{upload_id}/original": {"hq-lin", "hq-chen", "owner"},
     "/demo/upload": {"hq-lin", "hq-chen", "owner"},
 }
