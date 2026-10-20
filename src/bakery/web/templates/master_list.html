@@ -34,7 +34,7 @@
       <td class="order-no">{% if can(Area.OPERATIONS) %}<a href="/orders/{{ o.id }}">{{ o.order_no }}</a>{% else %}{{ o.order_no }}{% endif %}</td>
       <td>{{ line.product.name }}</td>
       <td class="num">{{ line.quantity }}</td>
-      <td>{{ "取消" if line.status == "cancelled" else "" }}</td>
+      <td>{{ "取消" if line.status == "cancelled" else "" }}{% if o.is_historical %}<span class="muted">歷史資料</span>{% endif %}</td>
       <td>{{ line.note or "" }}</td>
       <td>{{ o.orderer_name or "" }}</td>
       <td>{{ o.phone or "" }}</td>

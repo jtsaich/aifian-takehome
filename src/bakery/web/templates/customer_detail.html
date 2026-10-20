@@ -34,7 +34,7 @@
       <td>{{ o.phone }}</td>
       <td>{{ o.pickup_on|ymd }}</td>
       <td class="num">{{ co.boxes }}</td>
-      <td>{{ "全部取消" if co.cancelled else "" }}</td>
+      <td>{{ "全部取消" if co.cancelled else "" }}{% if o.is_historical %}<span class="muted">歷史資料</span>{% endif %}</td>
     </tr>
     {% endfor %}
   </tbody>

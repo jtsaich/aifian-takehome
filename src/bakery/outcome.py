@@ -31,6 +31,8 @@ class FindingKind(StrEnum):
     # Errors: the whole 喜餅訂單 is dropped.
     INCONSISTENT_ORDER_FIELDS = "inconsistent_order_fields"  # detail: diffs ((column, values), ...)
     DUPLICATE_PRODUCT = "duplicate_product"  # detail: product
+    # 歷史資料匯入 only: the 單號 is an order received after go-live, which 歷史資料 never overwrites.
+    LIVE_ORDER_NO = "live_order_no"
     # Warnings: accepted.
     PICKUP_IN_PAST = "pickup_in_past"  # detail: pickup_on
     PICKUP_TOO_SOON = "pickup_too_soon"  # detail: pickup_on, days
@@ -141,6 +143,8 @@ class UploadOutcome:
 @dataclass(frozen=True)
 class ProcessResult:
     upload_id: int
-    reply_text: str  # exactly what the LINE reply says (capped at the LINE limit)
+    # Exactly what the LINE reply says (capped at the LINE limit); None for a 歷史資料匯入,
+    # which nobody is replied to.
+    reply_text: str | None
     report_text: str  # the full reply, every finding listed; shown on the web
     outcome: UploadOutcome

@@ -34,6 +34,7 @@
   <a href="/demo/upload">模擬群組上傳</a>
   {% endif %}
   {% if can(Area.CUSTOMERS) %}<a href="/customers">客人資料</a>{% endif %}
+  {% if can(Area.HISTORY_IMPORT) %}<a href="/history/import">歷史資料匯入</a>{% endif %}
   {% if account %}
   <span class="account">
     <span class="account-name">{{ account.display_name }}</span>

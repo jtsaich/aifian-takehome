@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% block title %}上傳 #{{ upload.id }}{% endblock %}
 {% block content %}
-<p>{{ upload.received_at|taipei }}　{{ (upload.uploader.display_name or upload.uploader.line_user_id) if upload.uploader else "（認不出的 LINE 帳號）" }}　{{ upload.store.name if upload.store else "" }}　{{ upload.filename }}　<a href="/uploads/{{ upload.id }}/original">下載原檔</a></p>
+<p>{{ upload.received_at|taipei }}　{% if upload.is_historical %}歷史資料匯入：{{ upload.submitted_by.display_name }}{% else %}{{ (upload.uploader.display_name or upload.uploader.line_user_id) if upload.uploader else "（認不出的 LINE 帳號）" }}{% endif %}　{{ upload.store.name if upload.store else "" }}　{{ upload.filename }}　<a href="/uploads/{{ upload.id }}/original">下載原檔</a></p>
 {% if upload.failure_reason %}
 <p class="error">處理失敗，原檔已保存。原因：<span class="failure-reason">{{ upload.failure_reason }}</span></p>
 {% endif %}
-<h2>完整回覆</h2>
+<h2>{{ "匯入結果（歷史資料匯入不回覆 LINE）" if upload.is_historical else "完整回覆" }}</h2>
 <div class="reply">{{ upload.report_text or upload.reply_text or "" }}</div>
-{% if upload.report_text and upload.report_text != upload.reply_text %}
+{% if upload.reply_text and upload.report_text != upload.reply_text %}
 <h2>LINE 群組收到的回覆（超過 LINE 字數上限，只列前面幾項）</h2>
 <div class="reply">{{ upload.reply_text }}</div>
 {% endif %}

@@ -28,8 +28,15 @@ class MergeResult:
 
 
 def merge_orders(
-    session: Session, *, upload: Upload, store_code: str, orders: Sequence[ParsedOrder]
+    session: Session,
+    *,
+    upload: Upload,
+    store_code: str,
+    orders: Sequence[ParsedOrder],
+    historical: bool = False,
 ) -> MergeResult:
+    """`historical`: a 歷史資料匯入. New orders are flagged is_historical and no change
+    is held (bakery.changes.decide); the caller keeps orders received after go-live out."""
     existing = {
         o.order_no: o
         for o in session.scalars(
@@ -44,7 +51,7 @@ def merge_orders(
     for parsed in orders:
         order = existing.get(parsed.order_no)
         if order is None:
-            order = Order(store_code=store_code, order_no=parsed.order_no)
+            order = Order(store_code=store_code, order_no=parsed.order_no, is_historical=historical)
             session.add(order)
             diffs = new_order_diffs(parsed)
             apply_diffs(order, diffs)
@@ -56,7 +63,7 @@ def merge_orders(
         if detected is None:
             unchanged.append(parsed.order_no)
             continue
-        decision = decide(detected)
+        decision = decide(detected, historical=historical)
         _log(session, upload, order, detected.kinds, detected.diffs, decision, is_new_order=False)
         if decision == ChangeDecision.APPLIED:
             apply_diffs(order, detected.diffs)
