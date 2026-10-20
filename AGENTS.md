@@ -14,3 +14,17 @@ Stack：Python＋FastAPI＋Postgres。交付形式：repo＋demo 影片，期限
 - LINE 只用 reply 回覆，不用 push（push 會吃推播額度）。webhook 依 `webhookEventId` 去重。
 - 只用模擬資料。log 不寫入姓名和電話。
 - 這是對外的作品：README、commit message 不提面試流程，也不寫公司內部資訊。
+
+## Agent skills
+
+### Issue tracker
+
+Tickets live as local markdown under `.scratch/<feature>/issues/`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-role vocabulary (needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: root `GLOSSARY.md` + `docs/adr/`. See `docs/agents/domain.md`.
