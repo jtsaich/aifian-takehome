@@ -321,6 +321,25 @@ def test_audit_page_shows_full_history_and_is_linked_from_master_list(client, ma
     assert re.search(r"<td>取貨日</td>\s*<td></td>\s*<td>2026/11/28</td>\s*<td>2026/12/12</td>", sections[2])
 
 
+def test_change_from_an_unidentified_line_account_is_logged_and_auditable(
+    client, session, send, now, make_template_file
+):
+    send(DAY1)
+    result = process_upload(
+        session,
+        uploader_line_id=None,
+        filename="TC01.xlsx",
+        file_bytes=make_template_file("TC01", [row("龍鳳喜餅", 120)]),
+        now=now,
+    )
+    [change] = _changes(session, result.upload_id)
+
+    html = client.get(f"/orders/{change.order_id}").text
+
+    assert "・單號 0301：追加，龍鳳喜餅 80→120 盒" in result.reply_text
+    assert "（認不出的 LINE 帳號）" in html
+
+
 def test_kitchen_master_list_has_no_audit_links(make_client, client, make_template_file):
     _post(client, DAY1, make_template_file)
 

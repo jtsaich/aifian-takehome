@@ -137,6 +137,24 @@ class FileRejected(Exception):
         self.failure = failure
 
 
+def is_template_file(file_bytes: bytes) -> bool:
+    """Whether the file is a 範本: an .xlsx with the 門市代碼 and 範本版本 label cells
+    near the top of some sheet. Other files sent to the LINE group are not ours to answer."""
+    try:
+        wb = load_workbook(io.BytesIO(file_bytes), read_only=True, data_only=True)
+    except Exception:  # not an .xlsx at all: a photo, a PDF, a .docx...
+        return False
+    try:
+        for ws in wb.worksheets:
+            top = ws.iter_rows(min_row=1, max_row=HEADER_SEARCH_ROWS, values_only=True)
+            labels = {_text(v) for row in top for v in row}
+            if STORE_CODE_LABEL in labels and VERSION_LABEL in labels:
+                return True
+        return False
+    finally:
+        wb.close()
+
+
 def parse_upload(file_bytes: bytes, products: ProductLookup, today: date) -> ParsedFile:
     """`today` (Taipei) resolves dates written without a year, e.g. 10/25."""
     try:

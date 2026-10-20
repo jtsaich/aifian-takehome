@@ -79,6 +79,21 @@ class Failure:
     detail: Mapping[str, Any] = field(default_factory=dict)
 
 
+class UploaderNoticeKind(StrEnum):
+    """What the reply's first line says about the 傳檔者 and their 門市綁定."""
+
+    NEW_BINDING = "new_binding"  # first file from this account: bound to the file's 門市, pending
+    OTHER_STORE = "other_store"  # bound to another 門市 than the file's
+    UNIDENTIFIED = "unidentified"  # LINE did not say which account sent the file
+
+
+@dataclass(frozen=True)
+class UploaderNotice:
+    kind: UploaderNoticeKind
+    store_name: str | None = None  # the file's 門市 (NEW_BINDING, OTHER_STORE)
+    bound_store_name: str | None = None  # the 門市 the account is bound to (OTHER_STORE)
+
+
 @dataclass(frozen=True)
 class FieldDiff:
     """One field of a 修改, old → new as the change log stores it (see bakery.models.ChangeEntry).
@@ -116,6 +131,7 @@ class UploadOutcome:
     new_order_nos: tuple[str, ...] = ()  # 單號 seen for the first time
     unchanged_order_nos: tuple[str, ...] = ()  # on record with identical content: never mentioned
     changes: tuple[OrderChange, ...] = ()
+    uploader_notice: UploaderNotice | None = None  # only for files whose 門市 is known
 
     @property
     def rejected_row_count(self) -> int:

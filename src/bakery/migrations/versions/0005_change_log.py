@@ -1,7 +1,7 @@
 """change log: changes (one per order per upload that brought it in new or changed) and their field entries, append-only
 
-Revision ID: 0004
-Revises: 0003
+Revision ID: 0005
+Revises: 0004
 Create Date: 2026-10-21 15:00:00
 """
 
@@ -21,8 +21,8 @@ END
 $$
 """
 
-revision: str = '0004'
-down_revision: str | None = '0003'
+revision: str = '0005'
+down_revision: str | None = '0004'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
