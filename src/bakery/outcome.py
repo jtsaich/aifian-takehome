@@ -1,7 +1,7 @@
 """Structured result of processing one 上傳: what reply text is rendered from.
 
-Findings carry facts (kind, location, values), never wording: `bakery.reply`
-is the one place that turns them into 繁中 text.
+Findings and changes carry facts (kind, location, values), never wording:
+`bakery.reply` is the one place that turns them into 繁中 text.
 """
 
 from __future__ import annotations
@@ -10,6 +10,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
+
+from bakery.models import ChangeDecision, ChangeField, ChangeKind
 
 
 class Severity(StrEnum):
@@ -93,6 +95,31 @@ class UploaderNotice:
 
 
 @dataclass(frozen=True)
+class FieldDiff:
+    """One field of a 修改, old → new as the change log stores it (see bakery.models.ChangeEntry).
+    `kind` is the 修改類型 this field contributes (None for a 新單). Line fields name
+    their 品項 and carry the line's 盒數 in this file."""
+
+    field: ChangeField
+    old: str | None
+    new: str | None
+    kind: ChangeKind | None = None
+    product_code: str | None = None
+    product_name: str | None = None
+    quantity: int | None = None
+
+
+@dataclass(frozen=True)
+class OrderChange:
+    """A 喜餅訂單 already on record that came in with different content."""
+
+    order_no: str
+    kinds: tuple[ChangeKind, ...]
+    diffs: tuple[FieldDiff, ...]
+    decision: ChangeDecision
+
+
+@dataclass(frozen=True)
 class UploadOutcome:
     store_code: str | None
     store_name: str | None
@@ -102,6 +129,9 @@ class UploadOutcome:
     findings: tuple[Finding, ...] = ()
     failure: Failure | None = None
     uploader_notice: UploaderNotice | None = None  # only for files whose 門市 is known
+    new_order_nos: tuple[str, ...] = ()  # 單號 seen for the first time
+    unchanged_order_nos: tuple[str, ...] = ()  # on record with identical content: never mentioned
+    changes: tuple[OrderChange, ...] = ()
 
     @property
     def rejected_row_count(self) -> int:

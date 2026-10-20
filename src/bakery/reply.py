@@ -7,15 +7,20 @@ to do; errors (not accepted) and warnings (accepted) are listed apart.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
+from bakery.changes import DATE_FIELDS, FIELD_LABELS, KIND_LABELS
+from bakery.models import ChangeDecision, ChangeField, ChangeKind
 from bakery.outcome import (
     Failure,
     FailureKind,
+    FieldDiff,
     Finding,
     FindingKind,
+    OrderChange,
     Severity,
     SkipReason,
     UploaderNotice,
@@ -32,6 +37,7 @@ DATE_EXAMPLE = "2026/11/08"
 # when a file could not even be kept.
 PROCESSING_FAILED = "這份檔案沒處理成功，總部已收到通知。"
 
+_CHANGES_TITLE = "【修改】"
 _SECTIONS: tuple[tuple[Severity, str], ...] = (
     (Severity.ERROR, "【沒有收，請改好後再傳一次】"),
     (Severity.WARNING, "【已先收下，請再確認】"),
@@ -50,7 +56,8 @@ def render_reply(outcome: UploadOutcome, report_url: str) -> Reply:
     head = _summary(outcome)
     if outcome.uploader_notice is not None:
         head = f"{uploader_notice_text(outcome.uploader_notice)}\n{head}"
-    items = [
+    items = [(_CHANGES_TITLE, f"・{change_text(c)}") for c in outcome.changes]
+    items += [
         (title, f"・{finding_text(f)}")
         for severity, title in _SECTIONS
         for f in outcome.findings
@@ -88,10 +95,11 @@ def _summary(outcome: UploadOutcome) -> str:
         return PROCESSING_FAILED + "原檔已經保存，不用重傳。"
     if outcome.failure is not None:
         return f"這份檔案沒有收：{failure_text(outcome.failure)}"
-    text = (
-        f"{outcome.store_name}（{outcome.store_code}）："
-        f"收到 {outcome.order_count} 張喜餅訂單、{outcome.line_count} 筆訂單明細。"
-    )
+    text = f"{outcome.store_name}（{outcome.store_code}）："
+    if outcome.changes or outcome.unchanged_order_nos:
+        text += _merge_summary(outcome)
+    else:
+        text += f"收到 {outcome.order_count} 張喜餅訂單、{outcome.line_count} 筆訂單明細。"
     if outcome.rejected_row_count:
         text += f"有 {outcome.rejected_row_count} 列沒有收，請改好後再傳一次。"
     warnings = sum(1 for f in outcome.findings if f.severity == Severity.WARNING)
@@ -113,6 +121,117 @@ def uploader_notice_text(notice: UploaderNotice) -> str:
         case UploaderNoticeKind.UNIDENTIFIED:
             return "系統認不出是哪個 LINE 帳號傳的，檔案照常收下，但沒辦法記錄傳檔者。"
     raise AssertionError(notice.kind)
+
+
+def _merge_summary(outcome: UploadOutcome) -> str:
+    """For a file that repeats 單號 already on record; unchanged ones are not counted."""
+    parts = []
+    if outcome.new_order_nos:
+        parts.append(f"新單 {len(outcome.new_order_nos)} 張")
+    if outcome.changes:
+        part = f"修改 {len(outcome.changes)} 張"
+        held = sum(1 for c in outcome.changes if c.decision == ChangeDecision.HELD)
+        if held:
+            part += f"，其中 {held} 張待總部確認"
+        parts.append(part)
+    if not parts:
+        return "這份檔案的內容之前都收過了，沒有新單，也沒有修改。"
+    return "；".join(parts) + "。"
+
+
+def change_text(c: OrderChange) -> str:
+    """「單號 0101：追加，龍鳳喜餅 80→120 盒」: what changed, in store words."""
+    if c.kinds == (ChangeKind.SUSPECTED_REUSE,):
+        return f"單號 {c.order_no}：{_reuse_text(c.diffs)}"
+    details = [text for kind in c.kinds for text in _kind_details(kind, c.diffs)]
+    if c.kinds == (ChangeKind.PICKUP_DATE,):
+        details = [_dates(_only(c.diffs, ChangeField.PICKUP_ON))]  # 改取貨日 already says what
+    text = f"單號 {c.order_no}：{'＋'.join(KIND_LABELS[k] for k in c.kinds)}，{'；'.join(details)}"
+    if c.decision == ChangeDecision.HELD:
+        text += "（待總部確認）"
+    return text
+
+
+def _reuse_text(diffs: Sequence[FieldDiff]) -> str:
+    pickup = any(d.field is ChangeField.PICKUP_ON for d in diffs)
+    lines = [d for d in diffs if d.product_code and d.kind is not ChangeKind.INFO_FIX]
+    what = []
+    if pickup:
+        what.append("取貨日")
+    if lines:
+        new_or_cancelled = any(d.old is None or d.field is ChangeField.STATUS for d in lines)
+        what.append("品項" if new_or_cancelled else "盒數")
+    return (
+        f"電話跟之前不同，{'和'.join(what)}也變了，可能是兩張不同的單用了同一個單號。"
+        "這張單先照舊，待總部確認；請檢查單號有沒有重複。"
+    )
+
+
+def _kind_details(kind: ChangeKind, diffs: Sequence[FieldDiff]) -> list[str]:
+    mine = [d for d in diffs if d.kind is kind]
+    match kind:
+        case ChangeKind.ADD_QTY | ChangeKind.REDUCE_QTY:
+            return [_quantity_detail(line) for line in _by_product(mine)]
+        case ChangeKind.PICKUP_DATE:
+            return [f"{FIELD_LABELS[d.field]} {_dates(d)}" for d in mine]
+        case ChangeKind.CANCEL:
+            boxes = "、".join(_cancelled_boxes(line) for line in _by_product(mine))
+            return [f"{boxes}不再生產"]
+        case ChangeKind.INFO_FIX:
+            # A 狀態 entry here only accompanies a new line already marked 取消: said by its 盒數.
+            return [_info_detail(d) for d in mine if d.field is not ChangeField.STATUS]
+    raise AssertionError(kind)
+
+
+def _cancelled_boxes(line: list[FieldDiff]) -> str:
+    """The 盒數 on record that the kitchen no longer makes."""
+    quantity = next((d for d in line if d.field is ChangeField.QUANTITY), None)
+    boxes = quantity.old if quantity is not None else line[0].quantity
+    return f"{line[0].product_name} {boxes} 盒"
+
+
+def _quantity_detail(line: list[FieldDiff]) -> str:
+    """追加/減量 of one 品項: a new one, one back from 取消, or a different 盒數."""
+    name = line[0].product_name
+    quantity = next((d for d in line if d.field is ChangeField.QUANTITY), None)
+    if quantity is not None and quantity.old is None:
+        return f"新增{name} {quantity.new} 盒"
+    if any(d.field is ChangeField.STATUS for d in line):
+        return f"{name} 恢復生產 {line[0].quantity} 盒"
+    return f"{name} {quantity.old}→{quantity.new} 盒"
+
+
+def _info_detail(d: FieldDiff) -> str:
+    if d.field is ChangeField.PHONE:
+        return "電話已更新"
+    if d.field is ChangeField.QUANTITY:  # a line marked 取消 either way
+        if d.old is None:
+            return f"新增{d.product_name} {d.new} 盒（已標取消）"
+        return f"{d.product_name}（已取消）{d.old}→{d.new} 盒"
+    label = f"{d.product_name} {FIELD_LABELS[d.field]}" if d.product_code else FIELD_LABELS[d.field]
+    return f"{label} {_dates(d) if d.field in DATE_FIELDS else _texts(d)}"
+
+
+def _by_product(diffs: Sequence[FieldDiff]) -> list[list[FieldDiff]]:
+    groups: dict[str, list[FieldDiff]] = {}
+    for d in diffs:
+        groups.setdefault(d.product_code, []).append(d)
+    return list(groups.values())
+
+
+def _only(diffs: Sequence[FieldDiff], field: ChangeField) -> FieldDiff:
+    return next(d for d in diffs if d.field is field)
+
+
+def _dates(d: FieldDiff) -> str:
+    def show(text: str | None) -> str:
+        return "空白" if text is None else _date(date.fromisoformat(text))
+
+    return f"{show(d.old)}→{show(d.new)}"
+
+
+def _texts(d: FieldDiff) -> str:
+    return f"{d.old or '空白'}→{d.new or '空白'}"
 
 
 def failure_text(failure: Failure) -> str:

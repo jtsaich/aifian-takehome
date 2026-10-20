@@ -6,6 +6,7 @@ from datetime import date, datetime
 from enum import StrEnum
 
 from sqlalchemy import (
+    ARRAY,
     CheckConstraint,
     Date,
     DateTime,
@@ -36,6 +37,40 @@ class Base(DeclarativeBase):
 class LineStatus(StrEnum):
     ACTIVE = "active"
     CANCELLED = "cancelled"  # 取消: marked explicitly in the 狀態 column, never inferred
+
+
+class ChangeKind(StrEnum):
+    """修改類型. One 修改 can carry several, except 疑似單號重複使用, which stands alone."""
+
+    ADD_QTY = "add_qty"  # 追加: more 盒, a new 品項, or a 取消 line back in production
+    REDUCE_QTY = "reduce_qty"  # 減量: fewer 盒, still above 0
+    PICKUP_DATE = "pickup_date"  # 改取貨日
+    CANCEL = "cancel"  # 取消: 狀態 newly marked 取消
+    INFO_FIX = "info_fix"  # 資料更正: fields that don't affect production (phone-only included)
+    SUSPECTED_REUSE = "suspected_reuse"  # 疑似單號重複使用: phone changed AND 品項/盒數 or 取貨日 changed
+
+
+class ChangeField(StrEnum):
+    """A field a change log entry records. Line fields come with the entry's product_code."""
+
+    ORDERER_NAME = "orderer_name"
+    PHONE = "phone"
+    RECEIVED_ON = "received_on"
+    PICKUP_ON = "pickup_on"
+    BANQUET_ON = "banquet_on"
+    COUPLE_NAMES = "couple_names"
+    TAKEN_BY = "taken_by"
+    QUANTITY = "quantity"
+    NOTE = "note"
+    STATUS = "status"
+
+
+class ChangeDecision(StrEnum):
+    """What happened to a change when its 上傳 was processed. Decided by bakery.changes.decide."""
+
+    APPLIED = "applied"
+    HELD = "held"  # not applied: the order keeps its earlier content
+
 
 
 class Role(StrEnum):
@@ -243,3 +278,60 @@ class OrderLine(Base):
 
     order: Mapped[Order] = relationship(back_populates="lines")
     product: Mapped[Product] = relationship()
+
+
+class Change(Base):
+    """修改紀錄: one 喜餅訂單 as one 上傳 brought it in, new (is_new_order) or with different
+    content. Unchanged orders get none. Uploader and time come from the upload.
+    Append-only: a DB trigger rejects UPDATE and DELETE."""
+
+    __tablename__ = "changes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    upload_id: Mapped[int] = mapped_column(ForeignKey("uploads.id"), index=True)
+    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"), index=True)
+    is_new_order: Mapped[bool]
+    kinds: Mapped[list[str]] = mapped_column(ARRAY(String(32)))  # ChangeKind values; empty for 新單
+    decision: Mapped[ChangeDecision] = mapped_column(
+        Enum(
+            ChangeDecision,
+            native_enum=False,
+            create_constraint=True,
+            length=16,
+            values_callable=lambda e: [m.value for m in e],
+            name="change_decision",
+        )
+    )
+
+    upload: Mapped[Upload] = relationship()
+    order: Mapped[Order] = relationship()
+    entries: Mapped[list[ChangeEntry]] = relationship(order_by="ChangeEntry.id")
+
+    @property
+    def change_kinds(self) -> tuple[ChangeKind, ...]:
+        return tuple(ChangeKind(k) for k in self.kinds)
+
+
+class ChangeEntry(Base):
+    """One field of a Change: old → new, as text (dates ISO, 盒數 digits, 狀態 a LineStatus value;
+    NULL = empty, or no such 訂單明細 yet). Append-only like Change."""
+
+    __tablename__ = "change_entries"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    change_id: Mapped[int] = mapped_column(ForeignKey("changes.id"), index=True)
+    field: Mapped[ChangeField] = mapped_column(
+        Enum(
+            ChangeField,
+            native_enum=False,
+            create_constraint=True,
+            length=16,
+            values_callable=lambda e: [m.value for m in e],
+            name="change_field",
+        )
+    )
+    product_code: Mapped[str | None] = mapped_column(ForeignKey("products.code"))
+    old_value: Mapped[str | None] = mapped_column(Text)
+    new_value: Mapped[str | None] = mapped_column(Text)
+
+    product: Mapped[Product | None] = relationship()

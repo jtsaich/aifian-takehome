@@ -29,6 +29,7 @@ PUBLIC = {("GET", "/"), ("GET", "/login"), ("POST", "/login"), ("POST", "/logout
 # Confirming a 門市綁定 (POST /bindings) is for 總部人員 only: tests/test_store_binding.py.
 PAGES: dict[str, set[str]] = {
     "/orders": {"hq-lin", "hq-chen", "kitchen", "owner"},
+    "/orders/{order_id}": {"hq-lin", "hq-chen", "owner"},
     "/uploads": {"hq-lin", "hq-chen", "owner"},
     "/uploads/{upload_id}": {"hq-lin", "hq-chen", "owner"},
     "/uploads/{upload_id}/original": {"hq-lin", "hq-chen", "owner"},
@@ -113,7 +114,7 @@ def test_every_page_except_login_requires_an_account(engine, make_client, orders
 def test_anonymous_visitors_see_no_order_data(make_client, orders_exist):
     anon = make_client(None)
 
-    paths = ("/", "/orders", "/uploads", "/uploads/1/original", "/demo/upload",
+    paths = ("/", "/orders", "/orders/1", "/uploads", "/uploads/1/original", "/demo/upload",
              "/customers", "/customers/1", "/customers.xlsx")
     for path in paths:
         resp = anon.get(path)

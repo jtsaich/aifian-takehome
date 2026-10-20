@@ -1,22 +1,35 @@
-"""Merge one 上傳's parsed 喜餅訂單 into the stored orders.
+"""Merge one 上傳's parsed 喜餅訂單 into the stored orders, logging every 新單 and 修改.
 
 ADR 0001: an upload is a batch. Orders and 訂單明細 absent from the file are left
-untouched; a 單號 already on record is overwritten with the file's content
-(no change detection or change log yet).
+untouched. A 單號 on record whose content is identical is left alone and not
+logged; one with different content is a 修改, classified and applied or held as
+bakery.changes.decide says.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from bakery.models import LineStatus, Order, OrderLine
+from bakery.changes import apply_diffs, decide, detect_change, new_order_diffs
+from bakery.models import Change, ChangeDecision, ChangeEntry, ChangeKind, Order, Upload
+from bakery.outcome import FieldDiff, OrderChange
 from bakery.parsing import ParsedOrder
 
 
-def merge_orders(session: Session, *, store_code: str, orders: Sequence[ParsedOrder]) -> None:
+@dataclass(frozen=True)
+class MergeResult:
+    new_order_nos: tuple[str, ...]
+    unchanged_order_nos: tuple[str, ...]
+    changes: tuple[OrderChange, ...]
+
+
+def merge_orders(
+    session: Session, *, upload: Upload, store_code: str, orders: Sequence[ParsedOrder]
+) -> MergeResult:
     existing = {
         o.order_no: o
         for o in session.scalars(
@@ -25,26 +38,55 @@ def merge_orders(session: Session, *, store_code: str, orders: Sequence[ParsedOr
             .options(selectinload(Order.lines))
         )
     }
+    new: list[str] = []
+    unchanged: list[str] = []
+    changes: list[OrderChange] = []
     for parsed in orders:
         order = existing.get(parsed.order_no)
         if order is None:
             order = Order(store_code=store_code, order_no=parsed.order_no)
             session.add(order)
-        order.orderer_name = parsed.orderer_name
-        order.phone = parsed.phone
-        order.received_on = parsed.received_on
-        order.pickup_on = parsed.pickup_on
-        order.banquet_on = parsed.banquet_on
-        order.couple_names = parsed.couple_names
-        order.taken_by = parsed.taken_by
+            diffs = new_order_diffs(parsed)
+            apply_diffs(order, diffs)
+            _log(session, upload, order, (), diffs, ChangeDecision.APPLIED, is_new_order=True)
+            new.append(parsed.order_no)
+            continue
 
-        lines = {line.product_code: line for line in order.lines}
-        for p in parsed.lines:
-            line = lines.get(p.product_code)
-            if line is None:
-                line = lines[p.product_code] = OrderLine(product_code=p.product_code)
-                order.lines.append(line)
-            line.quantity = p.quantity
-            line.note = p.note
-            line.status = LineStatus.CANCELLED if p.cancelled else LineStatus.ACTIVE
+        detected = detect_change(order, parsed)
+        if detected is None:
+            unchanged.append(parsed.order_no)
+            continue
+        decision = decide(detected)
+        _log(session, upload, order, detected.kinds, detected.diffs, decision, is_new_order=False)
+        if decision == ChangeDecision.APPLIED:
+            apply_diffs(order, detected.diffs)
+        changes.append(OrderChange(parsed.order_no, detected.kinds, detected.diffs, decision))
     session.flush()
+    return MergeResult(tuple(new), tuple(unchanged), tuple(changes))
+
+
+def _log(
+    session: Session,
+    upload: Upload,
+    order: Order,
+    kinds: Sequence[ChangeKind],
+    diffs: Sequence[FieldDiff],
+    decision: ChangeDecision,
+    *,
+    is_new_order: bool,
+) -> None:
+    session.add(
+        Change(
+            upload=upload,
+            order=order,
+            is_new_order=is_new_order,
+            kinds=[k.value for k in kinds],
+            decision=decision,
+            entries=[
+                ChangeEntry(
+                    field=d.field, product_code=d.product_code, old_value=d.old, new_value=d.new
+                )
+                for d in diffs
+            ],
+        )
+    )
