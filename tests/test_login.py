@@ -27,6 +27,7 @@ PUBLIC = {("GET", "/"), ("GET", "/login"), ("POST", "/login"), ("POST", "/logout
 # Every logged-in page, as registered, with the demo accounts that may open it
 # (ticket 05: 廚房 sees only 總表 and 廚房彙總; 總部人員 and 老闆 see everything here).
 # Confirming a 門市綁定 (POST /bindings) is for 總部人員 only: tests/test_store_binding.py.
+# 歷史資料匯入 is for 總部人員 only as well.
 PAGES: dict[str, set[str]] = {
     "/orders": {"hq-lin", "hq-chen", "kitchen", "owner"},
     "/orders/{order_id}": {"hq-lin", "hq-chen", "owner"},
@@ -38,6 +39,7 @@ PAGES: dict[str, set[str]] = {
     "/customers": {"hq-lin", "hq-chen", "owner"},
     "/customers/{order_id}": {"hq-lin", "hq-chen", "owner"},
     "/customers.xlsx": {"hq-lin", "hq-chen", "owner"},
+    "/history/import": {"hq-lin", "hq-chen"},
 }
 ACCOUNTS = ("hq-lin", "hq-chen", "kitchen", "owner")
 

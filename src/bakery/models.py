@@ -17,6 +17,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    false,
     func,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -198,17 +199,21 @@ class LineWebhookEvent(Base):
 
 class Upload(Base):
     """上傳: one file as received. Append-only: a DB trigger rejects DELETE and any
-    change to the original (uploader, submitting account, filename, bytes, hash, size, time).
+    change to the original (uploader, submitting account, filename, bytes, hash, size,
+    time, whether it was a 歷史資料 import).
     store_code, reply_text, report_text and failure_reason are processing results,
     filled in after parsing."""
 
     __tablename__ = "uploads"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    # NULL when LINE did not say which account sent the file (userId is not always included).
+    # NULL when LINE did not say which account sent the file (userId is not always
+    # included), and for a 歷史資料匯入, which no 傳檔者 sent.
     uploader_id: Mapped[int | None] = mapped_column(ForeignKey("uploaders.id"))
-    # The web account that sent the file from the 模擬群組上傳 page; NULL when it came from LINE.
+    # The web account that sent the file (模擬群組上傳 or 歷史資料匯入); NULL when it came from LINE.
     submitted_by_id: Mapped[int | None] = mapped_column(ForeignKey("accounts.id"))
+    # A 歷史資料匯入 by a 總部人員: no 傳檔者, no LINE reply (reply_text stays NULL).
+    is_historical: Mapped[bool] = mapped_column(default=False, server_default=false())
     filename: Mapped[str] = mapped_column(String(255))
     content: Mapped[bytes] = mapped_column(LargeBinary, deferred=True)
     size_bytes: Mapped[int]
@@ -243,6 +248,9 @@ class Order(Base):
     banquet_on: Mapped[date | None] = mapped_column(Date)
     couple_names: Mapped[str | None] = mapped_column(String(128))
     taken_by: Mapped[str | None] = mapped_column(String(64))
+    # 歷史資料: imported from a 門市's pre-go-live Excel. Never part of production (廚房彙總),
+    # but part of 客人資料.
+    is_historical: Mapped[bool] = mapped_column(default=False, server_default=false())
 
     store: Mapped[Store] = relationship()
     lines: Mapped[list[OrderLine]] = relationship(

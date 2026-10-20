@@ -293,6 +293,8 @@ def finding_text(f: Finding) -> str:
             )
         case FindingKind.DUPLICATE_PRODUCT:
             return f"{at}：同一張單的{d['product']}寫了好幾列，整張單沒有收。同一個品項請合成一列。"
+        case FindingKind.LIVE_ORDER_NO:
+            return f"{at}：這個單號已經有上線後收到的喜餅訂單，歷史資料不會蓋過它，整張單沒有匯入。"
         case FindingKind.PICKUP_IN_PAST:
             return f"{at}：取貨日 {_date(d['pickup_on'])} 已經過了，已先收下，請確認日期有沒有打錯。"
         case FindingKind.PICKUP_TOO_SOON:

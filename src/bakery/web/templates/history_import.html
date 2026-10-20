@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}歷史資料匯入{% endblock %}
+{% block content %}
+<p>匯入門市上線前的舊訂單。舊 Excel 要先由導入人員用轉換工具轉成喜餅訂單範本，這裡只收轉好的範本檔。</p>
+<ul class="muted">
+  <li>匯入的訂單標記為歷史資料：會出現在客人資料裡，不算進廚房彙總，不套用修改截止點，也不會產生待確認。</li>
+  <li>不會在 LINE 群組回覆；匯入結果只顯示在這一頁和上傳紀錄。原檔一樣保存。</li>
+  <li>同一份檔案重複匯入，不會多出重複的訂單。上線後門市已經傳過的單號，歷史資料不會蓋過它。</li>
+</ul>
+
+<form class="upload" method="post" action="/history/import" enctype="multipart/form-data">
+  <label>轉好的範本檔（.xlsx，可一次選多個）
+    <input type="file" name="files" accept=".xlsx" multiple required>
+  </label>
+  <button type="submit">匯入歷史資料</button>
+</form>
+
+{% for filename, result in results %}
+<section class="import-result">
+  <h2>{{ filename }}</h2>
+  <div class="reply">{{ result.report_text }}</div>
+  <p>{% if result.outcome.store_code %}<a href="/orders?store={{ result.outcome.store_code }}">看這家門市的總表</a>　{% endif %}<a href="/customers">客人資料</a>　<a href="/uploads/{{ result.upload_id }}">這次匯入的紀錄</a></p>
+</section>
+{% endfor %}
+{% endblock %}

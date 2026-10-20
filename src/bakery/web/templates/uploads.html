@@ -10,11 +10,11 @@
     {% for u in uploads %}
     <tr>
       <td>{{ u.received_at|taipei }}</td>
-      <td>{{ (u.uploader.display_name or u.uploader.line_user_id) if u.uploader else "（認不出的 LINE 帳號）" }}</td>
-      <td class="submitted-by">{{ "模擬群組上傳：" ~ u.submitted_by.display_name if u.submitted_by else "LINE" }}</td>
+      <td>{% if u.is_historical %}—{% else %}{{ (u.uploader.display_name or u.uploader.line_user_id) if u.uploader else "（認不出的 LINE 帳號）" }}{% endif %}</td>
+      <td class="submitted-by">{% if u.is_historical %}歷史資料匯入：{{ u.submitted_by.display_name }}{% else %}{{ "模擬群組上傳：" ~ u.submitted_by.display_name if u.submitted_by else "LINE" }}{% endif %}</td>
       <td>{{ u.store.name if u.store else "" }}</td>
       <td><a href="/uploads/{{ u.id }}">{{ u.filename }}</a></td>
-      <td class="reply-cell">{% if u.failure_reason %}<strong class="error">處理失敗</strong>　{% endif %}{{ u.reply_text or "" }}</td>
+      <td class="reply-cell">{% if u.failure_reason %}<strong class="error">處理失敗</strong>　{% endif %}{% if u.is_historical %}<span class="muted">歷史資料匯入，不回覆 LINE</span>{% else %}{{ u.reply_text or "" }}{% endif %}</td>
       <td><a href="/uploads/{{ u.id }}/original">下載</a>（{{ (u.size_bytes / 1024)|round(1) }} KB）</td>
     </tr>
     {% else %}

@@ -18,6 +18,7 @@ class Area(StrEnum):
     CUSTOMERS = "customers"  # 客人資料
     # 總部人員's own decisions: confirming 門市綁定. The 老闆 sees them but doesn't make them.
     CONFIRMATIONS = "confirmations"
+    HISTORY_IMPORT = "history_import"  # 歷史資料匯入: a one-off onboarding step a 總部人員 runs
 
 
 _EVERYONE = frozenset(Role)
@@ -29,6 +30,7 @@ ACCESS: dict[Area, frozenset[Role]] = {
     Area.OPERATIONS: _HQ_AND_OWNER,
     Area.CUSTOMERS: _HQ_AND_OWNER,
     Area.CONFIRMATIONS: frozenset({Role.HQ}),
+    Area.HISTORY_IMPORT: frozenset({Role.HQ}),
 }
 
 

@@ -103,12 +103,16 @@ def detect_change(order: Order, parsed: ParsedOrder) -> Detected | None:
     return Detected(tuple(k for k in ChangeKind if k in kinds), tuple(diffs))
 
 
-def decide(detected: Detected) -> ChangeDecision:
+def decide(detected: Detected, *, historical: bool = False) -> ChangeDecision:
     """The one rule for whether a change applies now or waits for 總部.
 
     疑似單號重複使用 never applies on its own: it may be two different orders
     sharing one 單號, and applying would overwrite the first customer's order.
+    A 歷史資料匯入 (`historical`) always applies: it records what already happened,
+    affects no production, and nothing in it waits for 總部.
     """
+    if historical:
+        return ChangeDecision.APPLIED
     if ChangeKind.SUSPECTED_REUSE in detected.kinds:
         return ChangeDecision.HELD
     return ChangeDecision.APPLIED
