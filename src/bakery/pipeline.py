@@ -32,18 +32,21 @@ def process_upload(
     filename: str,
     file_bytes: bytes,
     now: datetime,
+    submitted_by_id: int | None = None,
 ) -> ProcessResult:
     """Keep the original, merge its accepted orders, and return the reply for the 傳檔者.
 
     Never raises on bad input: an unreadable file, an unknown 門市代碼 or an
     unexpected processing error becomes a failure the reply explains. The
     original is committed before parsing starts, so it survives any of these.
-    `now` must be timezone-aware.
+    `now` must be timezone-aware. `submitted_by_id` is the web account that
+    sent the file from the 模擬群組上傳 page; None for LINE.
     """
     if now.tzinfo is None:
         raise ValueError("now must be timezone-aware")
     upload = Upload(
         uploader=_uploader(session, uploader_line_id),
+        submitted_by_id=submitted_by_id,
         filename=filename,
         content=file_bytes,
         size_bytes=len(file_bytes),

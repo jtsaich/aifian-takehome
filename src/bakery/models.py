@@ -38,6 +38,36 @@ class LineStatus(StrEnum):
     CANCELLED = "cancelled"  # 取消: marked explicitly in the 狀態 column, never inferred
 
 
+class Role(StrEnum):
+    """Who a web account belongs to. Which pages each role sees: bakery.web.auth.ACCESS."""
+
+    HQ = "hq"  # 總部人員: one account per person, so every confirmation names who did it
+    KITCHEN = "kitchen"  # 廚房: one shared account
+    OWNER = "owner"  # 老闆
+
+
+class Account(Base):
+    """A web login. 門市 have none: they only use the 範本 and LINE."""
+
+    __tablename__ = "accounts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(64), unique=True)
+    display_name: Mapped[str] = mapped_column(String(128))
+    role: Mapped[Role] = mapped_column(
+        Enum(
+            Role,
+            native_enum=False,
+            create_constraint=True,
+            length=16,
+            values_callable=lambda e: [m.value for m in e],
+            name="role",
+        )
+    )
+    password_hash: Mapped[str] = mapped_column(String(255))  # argon2id, never the password
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Store(Base):
     """門市."""
 
@@ -85,13 +115,15 @@ class Uploader(Base):
 
 class Upload(Base):
     """上傳: one file as received. Append-only: a DB trigger rejects DELETE and any
-    change to the original (uploader, filename, bytes, hash, size, time).
+    change to the original (uploader, submitting account, filename, bytes, hash, size, time).
     store_code and reply_text are processing results, filled in after parsing."""
 
     __tablename__ = "uploads"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     uploader_id: Mapped[int] = mapped_column(ForeignKey("uploaders.id"))
+    # The web account that sent the file from the 模擬群組上傳 page; NULL when it came from LINE.
+    submitted_by_id: Mapped[int | None] = mapped_column(ForeignKey("accounts.id"))
     filename: Mapped[str] = mapped_column(String(255))
     content: Mapped[bytes] = mapped_column(LargeBinary, deferred=True)
     size_bytes: Mapped[int]
@@ -103,6 +135,7 @@ class Upload(Base):
     report_text: Mapped[str | None] = mapped_column(Text)
 
     uploader: Mapped[Uploader] = relationship()
+    submitted_by: Mapped[Account | None] = relationship()
     store: Mapped[Store | None] = relationship()
 
 

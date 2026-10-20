@@ -22,7 +22,9 @@ XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.s
 def history(request: Request, session: Annotated[Session, Depends(get_session)]) -> HTMLResponse:
     uploads = session.scalars(
         select(Upload)
-        .options(joinedload(Upload.uploader), joinedload(Upload.store))
+        .options(
+            joinedload(Upload.uploader), joinedload(Upload.submitted_by), joinedload(Upload.store)
+        )
         .order_by(Upload.received_at.desc(), Upload.id.desc())
     ).all()
     return templates.TemplateResponse(request, "uploads.html", {"uploads": uploads})

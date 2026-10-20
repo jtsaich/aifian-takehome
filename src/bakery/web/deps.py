@@ -11,6 +11,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from bakery.clock import TAIPEI
+from bakery.web.access import Area, may_open
 
 
 def get_session(request: Request) -> Iterator[Session]:
@@ -31,6 +32,14 @@ def _ymd(value) -> str:
     return value.strftime("%Y/%m/%d") if value else ""
 
 
-templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
+def _account_context(request: Request) -> dict:
+    """`account` (None until login) and `can(Area.X)` for the nav and pages."""
+    account = getattr(request.state, "account", None)
+    return {"account": account, "Area": Area, "can": lambda area: may_open(account, area)}
+
+
+templates = Jinja2Templates(
+    directory=Path(__file__).parent / "templates", context_processors=[_account_context]
+)
 templates.env.filters["taipei"] = _taipei
 templates.env.filters["ymd"] = _ymd
