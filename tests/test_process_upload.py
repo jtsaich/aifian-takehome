@@ -95,9 +95,10 @@ def test_original_file_is_kept_byte_for_byte_with_uploader_and_time(session, now
     [
         lambda uid: update(Upload).where(Upload.id == uid).values(content=b"tampered"),
         lambda uid: update(Upload).where(Upload.id == uid).values(filename="other.xlsx"),
+        lambda uid: update(Upload).where(Upload.id == uid).values(submitted_by_id=1),
         lambda uid: delete(Upload).where(Upload.id == uid),
     ],
-    ids=["content", "filename", "delete"],
+    ids=["content", "filename", "submitted_by", "delete"],
 )
 def test_original_file_cannot_be_changed_or_deleted(session, now, clean_file, tamper):
     result = _upload(session, now, clean_file)

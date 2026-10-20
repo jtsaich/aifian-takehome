@@ -5,7 +5,9 @@ description = "喜餅訂單匯流：門市 Excel 經 LINE 群組上傳，後端�
 requires-python = ">=3.11"
 dependencies = [
     "alembic>=1.13",
+    "argon2-cffi>=25.1.0",
     "fastapi>=0.115",
+    "itsdangerous>=2.2.0",
     "jinja2>=3.1",
     "openpyxl>=3.1",
     "psycopg[binary]>=3.2",

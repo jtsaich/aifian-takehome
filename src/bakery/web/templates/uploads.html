@@ -4,20 +4,21 @@
 <p class="muted">原檔照收到的樣子保存，不會被改動。</p>
 <table>
   <thead>
-    <tr><th>收到時間</th><th>傳檔者</th><th>門市</th><th>檔名</th><th>回覆</th><th>原檔</th></tr>
+    <tr><th>收到時間</th><th>傳檔者</th><th>送出方式</th><th>門市</th><th>檔名</th><th>回覆</th><th>原檔</th></tr>
   </thead>
   <tbody>
     {% for u in uploads %}
     <tr>
       <td>{{ u.received_at|taipei }}</td>
       <td>{{ u.uploader.display_name or u.uploader.line_user_id }}</td>
+      <td class="submitted-by">{{ "模擬群組上傳：" ~ u.submitted_by.display_name if u.submitted_by else "LINE" }}</td>
       <td>{{ u.store.name if u.store else "" }}</td>
       <td>{{ u.filename }}</td>
       <td class="reply-cell">{{ u.reply_text or "" }}</td>
       <td><a href="/uploads/{{ u.id }}/original">下載</a>（{{ (u.size_bytes / 1024)|round(1) }} KB）</td>
     </tr>
     {% else %}
-    <tr><td colspan="6" class="muted">還沒有任何上傳</td></tr>
+    <tr><td colspan="7" class="muted">還沒有任何上傳</td></tr>
     {% endfor %}
   </tbody>
 </table>

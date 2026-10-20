@@ -1,12 +1,14 @@
 """Shared fixtures: one real Postgres per test run (testcontainers), schema via Alembic.
 
-Every test starts from freshly seeded reference data (門市, 品項, demo 傳檔者)
-and no orders or uploads.
+Every test starts from freshly seeded reference data (門市, 品項, demo 傳檔者),
+the demo accounts, and no orders or uploads. `client` is logged in as a 總部人員;
+`make_client` gives one per account (or anonymous).
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import ExitStack
 from datetime import date, datetime
 
 import pytest
@@ -19,7 +21,7 @@ from bakery.catalog import store_by_code
 from bakery.clock import TAIPEI
 from bakery.db import upgrade_database
 from bakery.models import Base
-from bakery.seed import seed_reference_data
+from bakery.seed import DEMO_PASSWORD, seed_demo_accounts, seed_reference_data
 from bakery.template import FIRST_DATA_ROW, SHEET_NAME, build_template
 from bakery.web.app import create_app
 from bakery.web.deps import get_now
@@ -53,6 +55,7 @@ def session_factory(engine: Engine) -> sessionmaker[Session]:
     factory = sessionmaker(engine, expire_on_commit=False)
     with factory() as s:
         seed_reference_data(s)
+        seed_demo_accounts(s)
         s.commit()
     return factory
 
@@ -63,12 +66,33 @@ def session(session_factory: sessionmaker[Session]) -> Iterator[Session]:
         yield s
 
 
+MakeClient = Callable[[str | None], TestClient]
+
+
 @pytest.fixture
-def client(engine: Engine, session_factory: sessionmaker[Session]) -> Iterator[TestClient]:
-    app = create_app(engine)
-    app.dependency_overrides[get_now] = lambda: NOW
-    with TestClient(app) as c:
-        yield c
+def make_client(engine: Engine, session_factory: sessionmaker[Session]) -> Iterator[MakeClient]:
+    """A TestClient logged in as the demo account `username`, or anonymous for None."""
+    with ExitStack() as stack:
+
+        def make(username: str | None) -> TestClient:
+            app = create_app(engine)
+            app.dependency_overrides[get_now] = lambda: NOW
+            c = stack.enter_context(TestClient(app))
+            if username is not None:
+                resp = c.post(
+                    "/login",
+                    data={"username": username, "password": DEMO_PASSWORD},
+                    follow_redirects=False,
+                )
+                assert resp.status_code == 303, f"demo login failed for {username}"
+            return c
+
+        yield make
+
+
+@pytest.fixture
+def client(make_client: MakeClient) -> TestClient:
+    return make_client("hq-lin")
 
 
 # A clean 範本 file for TC01 whose content the tests know literally.

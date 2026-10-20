@@ -10,11 +10,24 @@
 docker compose up --build
 ```
 
-開 <http://localhost:8000>：
+開 <http://localhost:8000>，先用下面的 demo 帳號登入（門市沒有帳號，也不需要登入）：
 
 - 總表：`/orders`，可以依門市和取貨日篩選。
-- 上傳紀錄：`/uploads`，每一份原檔都可以下載。
+- 上傳紀錄：`/uploads`，每一份原檔都可以下載，也記錄是從 LINE 還是由哪個帳號在模擬頁送出的。
 - 模擬群組上傳：`/demo/upload`（demo 用，門市不會看到）。選一位傳檔者、上傳 `mock_data/` 裡的檔案，畫面上的回覆就是 LINE 群組會收到的內容。
+
+## Demo 帳號
+
+`bakery-init`（本機由 compose 的 `init` 服務執行，部署時由 Cloud Run job 執行）會建好這幾個帳號，密碼都是 `demo1234`：
+
+| 帳號 | 誰 | 看得到 |
+|---|---|---|
+| `hq-lin` | 總部人員 林雅文 | 全部營運頁面：總表、上傳紀錄、模擬群組上傳 |
+| `hq-chen` | 總部人員 陳志明 | 同上（總部每人一個帳號，紀錄裡才分得出是誰做的） |
+| `kitchen` | 中央廚房（共用） | 只有總表和廚房彙總 |
+| `owner` | 老闆 | 全部頁面 |
+
+密碼只存 argon2 雜湊。登入狀態是簽章過的 cookie，金鑰來自環境變數 `SESSION_SECRET`；本機沒設定時用開發用的預設值。部署時設 `BAKERY_ENV=production`，這時沒有設定 `SESSION_SECRET`（或少於 32 字元、或用的是預設值）app 會拒絕啟動，cookie 也只走 HTTPS。
 
 ## 開發
 
@@ -49,13 +62,13 @@ scripts/deploy.sh
 1. 啟用 Cloud Run、Artifact Registry、Cloud Build、Secret Manager API；建立映像檔倉庫（只保留最近 3 個映像檔）與 app 專用的 service account。
 2. 把 `DATABASE_URL` 存成 Secret Manager 的 `bakery-database-url`；`SESSION_SECRET`（登入 cookie 的簽章金鑰）沒給就自動產生一組存成 `bakery-session-secret`。值有變才新增版本。沒有 `sslmode=require`（或 `verify-ca`／`verify-full`）的 `DATABASE_URL` 直接拒絕。
 3. 用 Cloud Build 建置 `Dockerfile`（非 root 使用者執行，監聽 Cloud Run 給的 `PORT`）。
-4. 以 Cloud Run job `bakery-orders-init` 執行 `bakery-init`（Alembic 升到 head＋種入參考資料），等它成功才往下。
+4. 以 Cloud Run job `bakery-orders-init` 執行 `bakery-init`（Alembic 升到 head＋種入參考資料與 demo 帳號），等它成功才往下。
 5. 部署 service `bakery-orders`：`--min-instances 0 --max-instances 2`、公開存取、secrets 以參照方式掛成環境變數、`BAKERY_ENV=production`、`PUBLIC_BASE_URL`（回覆裡的連結用；預設是 Cloud Run 網址，用自訂網域時自行設定）。
 6. 印出公開網址。
 
 `DRY_RUN=1 GCP_PROJECT=x scripts/deploy.sh` 只印出會執行的 gcloud 指令（不印 secret 值）。
 
-部署後的驗收：開 `<網址>/demo/upload`，傳檔者選「草屯和平店 門市帳號」，上傳 `mock_data/day1/NT01_草屯和平店.xlsx`，回覆應為「草屯和平店（NT01）：收到 5 張喜餅訂單、9 筆訂單明細。」，`/orders` 看得到這 5 張訂單，`/uploads` 下載的原檔與上傳的一模一樣。
+部署後的驗收：以 `hq-lin` 登入，開 `<網址>/demo/upload`，傳檔者選「草屯和平店 門市帳號」，上傳 `mock_data/day1/NT01_草屯和平店.xlsx`，回覆應為「草屯和平店（NT01）：收到 5 張喜餅訂單、9 筆訂單明細。」，`/orders` 看得到這 5 張訂單，`/uploads` 下載的原檔與上傳的一模一樣。
 
 ### Migration 為什麼用 Cloud Run job
 
