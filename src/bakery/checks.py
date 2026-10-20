@@ -12,7 +12,7 @@ from datetime import date
 
 from bakery.outcome import Finding, FindingKind, Severity
 from bakery.parsing import ParsedOrder, group_rows
-from bakery.phone import phone_digits, phone_problem
+from bakery.phone import normalize_phone, phone_problem
 
 # A 取貨日 this many days from today or fewer (today included) is too soon for the kitchen.
 PICKUP_TOO_SOON_DAYS = 3
@@ -71,12 +71,12 @@ def _duplicate_phone_pickup(
     in_file = {o.order_no for o in orders}
     groups: dict[tuple[str, date], tuple[list[ParsedOrder], list[str]]] = {}
     for o in orders:
-        if o.phone and (digits := phone_digits(o.phone)):
-            groups.setdefault((digits, o.pickup_on), ([], []))[0].append(o)
+        if o.phone and (phone := normalize_phone(o.phone)):
+            groups.setdefault((phone, o.pickup_on), ([], []))[0].append(o)
     for s in stored:
-        if s.order_no in in_file or not s.phone or not (digits := phone_digits(s.phone)):
+        if s.order_no in in_file or not s.phone or not (phone := normalize_phone(s.phone)):
             continue
-        group = groups.get((digits, s.pickup_on))
+        group = groups.get((phone, s.pickup_on))
         if group is not None and s.order_no not in group[1]:
             group[1].append(s.order_no)
 
