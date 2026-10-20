@@ -7,15 +7,13 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Annotated
-from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 from sqlalchemy.orm import Session
 
 from bakery.customers import customer_of_order, customer_records, customer_records_xlsx
-from bakery.web.deps import get_now, get_session, templates
-from bakery.web.routes.uploads import XLSX_MEDIA_TYPE
+from bakery.web.deps import get_now, get_session, templates, xlsx_download
 
 router = APIRouter()
 
@@ -32,15 +30,10 @@ def export(
     session: Annotated[Session, Depends(get_session)],
     now: Annotated[datetime, Depends(get_now)],
 ) -> Response:
-    filename = f"客人資料_{now:%Y%m%d}.xlsx"
-    disposition = (
-        f'attachment; filename="customers-{now:%Y%m%d}.xlsx"; '
-        f"filename*=UTF-8''{quote(filename)}"
-    )
-    return Response(
+    return xlsx_download(
         customer_records_xlsx(customer_records(session), now),
-        media_type=XLSX_MEDIA_TYPE,
-        headers={"Content-Disposition": disposition},
+        f"客人資料_{now:%Y%m%d}.xlsx",
+        f"customers-{now:%Y%m%d}.xlsx",
     )
 
 

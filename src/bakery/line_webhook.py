@@ -26,7 +26,7 @@ from bakery.line import LineApi
 from bakery.models import LineWebhookEvent, Upload, Uploader
 from bakery.parsing import is_template_file
 from bakery.pipeline import process_upload
-from bakery.reply import PROCESSING_FAILED
+from bakery.reply import PROCESSING_FAILED, with_kitchen_summary_link
 
 log = logging.getLogger(__name__)
 
@@ -80,7 +80,7 @@ def _handle_file(
         # process_upload handles bad files itself; this is the database or the like failing.
         session.rollback()
         log.error("event %s: the file could not be kept: %s", event_id, type(exc).__name__)
-        _reply(api, reply_token, PROCESSING_FAILED, event_id)
+        _reply(api, reply_token, with_kitchen_summary_link(PROCESSING_FAILED), event_id)
         return True
 
     if event_id is not None:

@@ -353,7 +353,7 @@ def test_long_reply_is_cut_to_the_line_limit_with_a_link_to_the_rest(session, no
     text = result.reply_text
     assert len(text) <= 5000
     assert text.startswith("台中中正店（TC01）：收到 0 張喜餅訂單、0 筆訂單明細。有 400 列沒有收")
-    m = re.search(r"\n\n其餘 (\d+) 項請看網頁：(\S+)$", text)
+    m = re.search(r"\n\n其餘 (\d+) 項請看網頁：(\S+)\n\n廚房彙總：https://bakery.example/kitchen$", text)
     assert m[2] == f"https://bakery.example/uploads/{result.upload_id}"
     listed = text.count("不在商品清單裡")
     assert listed > 0 and listed + int(m[1]) == 400

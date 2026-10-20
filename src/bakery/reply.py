@@ -2,11 +2,13 @@
 
 The same text goes to the LINE group and to the 模擬群組上傳 page. Every
 problem names its place (分頁 + Excel 列號) and says, in store language, what
-to do; errors (not accepted) and warnings (accepted) are listed apart.
+to do; errors (not accepted) and warnings (accepted) are listed apart. Every
+reply ends with the link to the 廚房彙總 page.
 """
 
 from __future__ import annotations
 
+import os
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -36,6 +38,8 @@ DATE_EXAMPLE = "2026/11/08"
 # Something broke on our side, not in the file. The webhook also sends it on its own
 # when a file could not even be kept.
 PROCESSING_FAILED = "這份檔案沒處理成功，總部已收到通知。"
+# The 廚房彙總 page (bakery.web.routes.kitchen_summary), linked at the end of every reply.
+KITCHEN_SUMMARY_PATH = "/kitchen"
 
 _CHANGES_TITLE = "【修改】"
 _SECTIONS: tuple[tuple[Severity, str], ...] = (
@@ -63,16 +67,30 @@ def render_reply(outcome: UploadOutcome, report_url: str) -> Reply:
         for f in outcome.findings
         if f.severity == severity
     ]
-    report = _join(head, items)
+    report = with_kitchen_summary_link(_join(head, items))
     if len(report) <= LINE_TEXT_LIMIT:
         return Reply(report, report)
 
+    def cut(kept: int) -> str:
+        rest = _rest(len(items) - kept, report_url)
+        return with_kitchen_summary_link(_join(head, items[:kept]) + rest)
+
     kept = 0
     for k in range(1, len(items) + 1):
-        if len(_join(head, items[:k]) + _rest(len(items) - k, report_url)) > LINE_TEXT_LIMIT:
+        if len(cut(k)) > LINE_TEXT_LIMIT:
             break
         kept = k
-    return Reply(_join(head, items[:kept]) + _rest(len(items) - kept, report_url), report)
+    return Reply(cut(kept), report)
+
+
+def site_url(path: str) -> str:
+    """Absolute when PUBLIC_BASE_URL is set (LINE needs a full link), else a site path."""
+    return os.environ.get("PUBLIC_BASE_URL", "").rstrip("/") + path
+
+
+def with_kitchen_summary_link(text: str) -> str:
+    """`text` with the 廚房彙總 link as its last line, as every reply ends."""
+    return f"{text}\n\n廚房彙總：{site_url(KITCHEN_SUMMARY_PATH)}"
 
 
 def _join(head: str, items: list[tuple[str, str]]) -> str:

@@ -99,7 +99,7 @@ def test_a_processing_failure_records_no_binding_and_keeps_the_reason(session, n
 
     result = upload(session, now, clean_file, "Unew0001")
 
-    assert result.reply_text == "這份檔案沒處理成功，總部已收到通知。原檔已經保存，不用重傳。"
+    assert result.reply_text == "這份檔案沒處理成功，總部已收到通知。原檔已經保存，不用重傳。\n\n廚房彙總：/kitchen"
     stored = session.get(Upload, result.upload_id)
     assert stored.content == clean_file
     assert re.fullmatch(r"KeyError（\w+\.py:\d+ \w+）", stored.failure_reason)

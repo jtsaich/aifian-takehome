@@ -17,13 +17,10 @@
   <a href="/orders">清除</a>
 </form>
 
-<p class="muted">共 {{ lines|length }} 筆訂單明細</p>
-<table>
+<p class="muted">共 {{ lines|length }} 筆訂單明細　<a href="/orders.xlsx?{{ request.query_params }}">下載 .xlsx</a></p>
+<table class="master-list">
   <thead>
-    <tr>
-      <th>取貨日</th><th>門市</th><th>單號</th><th>品項</th><th>盒數</th><th>狀態</th><th>備註</th>
-      <th>訂購人姓名</th><th>電話</th><th>接單日</th><th>宴客日</th><th>新人姓名</th><th>接單人</th>
-    </tr>
+    <tr>{% for c in columns %}<th>{{ c }}</th>{% endfor %}</tr>
   </thead>
   <tbody>
     {% for line in lines %}
@@ -34,7 +31,7 @@
       <td class="order-no">{% if can(Area.OPERATIONS) %}<a href="/orders/{{ o.id }}">{{ o.order_no }}</a>{% else %}{{ o.order_no }}{% endif %}</td>
       <td>{{ line.product.name }}</td>
       <td class="num">{{ line.quantity }}</td>
-      <td>{{ "取消" if line.status == "cancelled" else "" }}{% if o.is_historical %}<span class="muted">歷史資料</span>{% endif %}</td>
+      <td>{{ status_text(line) }}</td>
       <td>{{ line.note or "" }}</td>
       <td>{{ o.orderer_name or "" }}</td>
       <td>{{ o.phone or "" }}</td>
@@ -43,9 +40,8 @@
       <td>{{ o.couple_names or "" }}</td>
       <td>{{ o.taken_by or "" }}</td>
     </tr>
-    {% else %}
-    <tr><td colspan="13" class="muted">沒有符合的訂單明細</td></tr>
     {% endfor %}
   </tbody>
 </table>
+{% if not lines %}<p class="muted">沒有符合的訂單明細</p>{% endif %}
 {% endblock %}
