@@ -1,10 +1,6 @@
 """The day-2 mock files (修改與重傳), each sent after its day-1 file: new, unchanged and
-changed orders, 修改類型 and replies must match the 對照表 (mock_data/expectations.json).
-
-PENDING-07: the 修改截止點 rule is ticket 07. Until then a production-affecting change
-past the cutoff (0106) still applies directly, so its 「已過截止點，待總部確認」 outcome and
-the summary's 待確認 count that includes it are checked only by the strict xfail test at
-the bottom, which starts passing (and so fails as XPASS) once 07 lands.
+changed orders, 修改類型, what applies and what waits for 總部 (修改截止點 and 疑似單號重複使用),
+and replies must match the 對照表 (mock_data/expectations.json).
 """
 
 from __future__ import annotations
@@ -25,12 +21,6 @@ MANIFEST = json.loads((MOCK / "expectations.json").read_text())
 FILES = {f["file"]: f for f in MANIFEST["files"]}
 DAY2 = [f for f in MANIFEST["files"] if f["stage"] == "day2"]
 DAY2_NOW = datetime.combine(date.fromisoformat(MANIFEST["day2"]), time(10, 0), tzinfo=TAIPEI)
-CUTOFF_SUFFIX = "（已過截止點，待總部確認）"
-
-
-def _pending_07(change: dict) -> bool:
-    """Waits for 總部 only because of the 修改截止點 (ticket 07)."""
-    return change["past_cutoff"] and change["outcome"] == "pending" and change["kinds"] != ["suspected_reuse"]
 
 
 def _send(session, entry: dict, now: datetime):
@@ -87,55 +77,34 @@ def _logged_form(diff: dict) -> tuple:
     return field, diff["product"], old, new
 
 
-def test_changes_apply_or_wait_as_the_table_says_except_the_cutoff(processed):
+def test_changes_apply_or_wait_as_the_table_says(processed):
     expected, result = processed
 
     for actual, want in zip(result.outcome.changes, expected["changes"], strict=True):
-        if _pending_07(want):
-            assert actual.decision == ChangeDecision.APPLIED, "PENDING-07: cutoff not implemented yet"
-            continue
         wanted = ChangeDecision.APPLIED if want["outcome"] == "applied" else ChangeDecision.HELD
         assert actual.decision == wanted, want["order_no"]
 
 
-def test_reply_matches_the_table_except_the_cutoff(processed):
+def test_reply_matches_the_table(processed):
     expected, result = processed
-    pending_07 = sum(1 for c in expected["changes"] if _pending_07(c))
-    summary = expected["reply_summary"]
-    if pending_07:
-        held = sum(1 for c in expected["changes"] if c["outcome"] == "pending")
-        # PENDING-07: 待確認 that come from the cutoff are not counted yet.
-        summary = summary.replace(f"其中 {held} 張", f"其中 {held - pending_07} 張")
 
-    assert result.reply_text.startswith(summary)
+    assert result.reply_text.startswith(expected["reply_summary"])
     for change in expected["changes"]:
-        line = change["reply"]
-        if _pending_07(change):
-            line = line.removesuffix(CUTOFF_SUFFIX)  # PENDING-07
-        assert f"・{line}" in result.reply_text, change["order_no"]
+        assert f"・{change['reply']}" in result.reply_text, change["order_no"]
     for finding in expected["findings"]:
         assert finding["reply"] in result.reply_text
 
 
 def test_held_orders_keep_their_day1_content(processed, session):
-    expected, result = processed
-    held = [c["order_no"] for c in expected["changes"] if c["kinds"] == ["suspected_reuse"]]
+    expected, _ = processed
 
-    for order_no in held:
+    for change in (c for c in expected["changes"] if c["outcome"] == "pending"):
         order = session.scalar(
-            select(Order).where(Order.store_code == expected["store_code"], Order.order_no == order_no)
+            select(Order).where(Order.store_code == expected["store_code"], Order.order_no == change["order_no"])
         )
-        reuse = next(c for c in expected["changes"] if c["order_no"] == order_no)
-        phone = next(d for d in reuse["diffs"] if d["field"] == "電話")
-        assert order.phone == phone["old"]
-
-
-@pytest.mark.xfail(strict=True, reason="PENDING-07: 修改截止點 / 待確認 is ticket 07")
-def test_reply_matches_the_table_including_the_cutoff(processed):
-    expected, result = processed
-    if not any(_pending_07(c) for c in expected["changes"]):
-        pytest.xfail("no cutoff case in this file")  # nothing pending here; keeps strict mode honest
-
-    assert result.reply_text.startswith(expected["reply_summary"])
-    for change in expected["changes"]:
-        assert f"・{change['reply']}" in result.reply_text, change["order_no"]
+        boxes = {line.product.name: str(line.quantity) for line in order.lines}
+        for diff in change["diffs"]:
+            if diff["field"] == "電話":
+                assert order.phone == diff["old"], change["order_no"]
+            if diff["field"] == "盒數":
+                assert boxes.get(diff["product"], "0") == diff["old"], change["order_no"]

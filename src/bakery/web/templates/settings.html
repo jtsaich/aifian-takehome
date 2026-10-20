@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}修改截止點{% endblock %}
+{% block content %}
+<p class="muted">修改截止點是取貨日前 N 天。那一天門市傳來的修改還是直接套用；從隔天起，會影響生產的修改（追加、減量、改取貨日、取消）要等總部確認。資料更正不受影響，一律直接套用。</p>
+<p>目前：取貨日前 <strong class="cutoff-days">{{ cutoff_days }}</strong> 天</p>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+{% if can(Area.CONFIRMATIONS) %}
+<form class="upload" method="post" action="/settings">
+  <label>取貨日前幾天 <input type="number" name="cutoff" min="0" max="60" value="{{ cutoff_days }}" required></label>
+  <button type="submit">儲存</button>
+</form>
+{% endif %}
+{% endblock %}

@@ -17,7 +17,7 @@ from openpyxl.styles import Font, PatternFill
 from sqlalchemy import ColumnElement, Select, select
 from sqlalchemy.orm import Session, joinedload
 
-from bakery.models import Change, ChangeDecision, LineStatus, Order, OrderLine, Product, Store
+from bakery.models import Change, LineStatus, Order, OrderLine, PendingReview, Product, ReviewStatus, Store
 from bakery.xlsx import workbook_bytes
 
 DEFAULT_DAYS = 14  # from today, today included
@@ -92,8 +92,12 @@ def date_range(today: date, start: date | None, end: date | None) -> tuple[date,
 
 
 def awaiting_review() -> Select[tuple[int]]:
-    """Ids of orders with a change neither applied nor yet decided by 總部: what 有待確認 means."""
-    return select(Change.order_id).where(Change.decision == ChangeDecision.HELD)
+    """Ids of orders with a 待確認 that 總部 has neither confirmed nor 退回: what 有待確認 means."""
+    return (
+        select(Change.order_id)
+        .join(PendingReview, PendingReview.change_id == Change.id)
+        .where(PendingReview.status == ReviewStatus.PENDING)
+    )
 
 
 def _counted(start: date, end: date) -> ColumnElement[bool]:

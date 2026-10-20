@@ -12,7 +12,9 @@ from fastapi.responses import Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
+from bakery.changes import DATE_FIELDS, FIELD_LABELS, KIND_LABELS
 from bakery.clock import TAIPEI
+from bakery.models import ChangeField, LineStatus
 from bakery.web.access import Area, may_open
 
 
@@ -51,6 +53,17 @@ def _ymd(value) -> str:
     return value.strftime("%Y/%m/%d") if value else ""
 
 
+def show_value(field: ChangeField, text: str | None) -> str:
+    """A change log value as pages show it."""
+    if text is None:
+        return ""
+    if field in DATE_FIELDS:
+        return text.replace("-", "/")
+    if field is ChangeField.STATUS:
+        return "取消" if text == LineStatus.CANCELLED else "（空白）"
+    return text
+
+
 def _account_context(request: Request) -> dict:
     """`account` (None until login) and `can(Area.X)` for the nav and pages."""
     account = getattr(request.state, "account", None)
@@ -62,3 +75,5 @@ templates = Jinja2Templates(
 )
 templates.env.filters["taipei"] = _taipei
 templates.env.filters["ymd"] = _ymd
+# Change log display (稽核頁, 待處理).
+templates.env.globals.update(show_value=show_value, field_labels=FIELD_LABELS, kind_labels=KIND_LABELS)

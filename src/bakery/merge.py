@@ -3,21 +3,24 @@
 ADR 0001: an upload is a batch. Orders and 訂單明細 absent from the file are left
 untouched. A 單號 on record whose content is identical is left alone and not
 logged; one with different content is a 修改, classified and applied or held as
-bakery.changes.decide says.
+bakery.changes.decide says. A held 修改 becomes a 待確認 (bakery.reviews); sending
+it again unchanged only brings a reminder.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from bakery.changes import apply_diffs, decide, detect_change, new_order_diffs
-from bakery.models import Change, ChangeDecision, ChangeEntry, ChangeKind, Order, Upload
-from bakery.outcome import FieldDiff, OrderChange
+from bakery.models import Change, ChangeDecision, ChangeEntry, ChangeKind, Order, PendingReview, Upload
+from bakery.outcome import FieldDiff, HeldChange, OrderChange
 from bakery.parsing import ParsedOrder
+from bakery.reviews import open_reviews, same_content, supersede
 
 
 @dataclass(frozen=True)
@@ -25,6 +28,7 @@ class MergeResult:
     new_order_nos: tuple[str, ...]
     unchanged_order_nos: tuple[str, ...]
     changes: tuple[OrderChange, ...]
+    repeated: tuple[HeldChange, ...]  # 待確認 sent again unchanged: not logged again
 
 
 def merge_orders(
@@ -33,9 +37,13 @@ def merge_orders(
     upload: Upload,
     store_code: str,
     orders: Sequence[ParsedOrder],
+    today: date,
+    cutoff_days: int,
     historical: bool = False,
 ) -> MergeResult:
-    """`historical`: a 歷史資料匯入. New orders are flagged is_historical and no change
+    """`today` (Taipei) and `cutoff_days` place each 修改 against the 修改截止點.
+
+    `historical`: a 歷史資料匯入. New orders are flagged is_historical and no change
     is held (bakery.changes.decide); the caller keeps orders received after go-live out."""
     existing = {
         o.order_no: o
@@ -43,11 +51,15 @@ def merge_orders(
             select(Order)
             .where(Order.store_code == store_code, Order.order_no.in_([p.order_no for p in orders]))
             .options(selectinload(Order.lines))
+            # A long-lived session may hold them from before a 總部 decision made elsewhere.
+            .execution_options(populate_existing=True)
         )
     }
+    held = open_reviews(session, [o.id for o in existing.values()])
     new: list[str] = []
     unchanged: list[str] = []
     changes: list[OrderChange] = []
+    repeated: list[HeldChange] = []
     for parsed in orders:
         order = existing.get(parsed.order_no)
         if order is None:
@@ -60,16 +72,24 @@ def merge_orders(
             continue
 
         detected = detect_change(order, parsed)
+        review = held.get(order.id)
+        if review is not None and detected is not None and same_content(review, detected.diffs):
+            repeated.append(HeldChange(parsed.order_no, review.change.change_kinds, detected.diffs, review.status))
+            continue
+        if review is not None:
+            supersede(review)  # sent back as on record, or with other content
         if detected is None:
             unchanged.append(parsed.order_no)
             continue
-        decision = decide(detected, historical=historical)
-        _log(session, upload, order, detected.kinds, detected.diffs, decision, is_new_order=False)
+        decision = decide(detected, order, today=today, cutoff_days=cutoff_days, historical=historical)
+        change = _log(session, upload, order, detected.kinds, detected.diffs, decision, is_new_order=False)
         if decision == ChangeDecision.APPLIED:
             apply_diffs(order, detected.diffs)
+        else:
+            session.add(PendingReview(change=change))
         changes.append(OrderChange(parsed.order_no, detected.kinds, detected.diffs, decision))
     session.flush()
-    return MergeResult(tuple(new), tuple(unchanged), tuple(changes))
+    return MergeResult(tuple(new), tuple(unchanged), tuple(changes), tuple(repeated))
 
 
 def _log(
@@ -81,19 +101,17 @@ def _log(
     decision: ChangeDecision,
     *,
     is_new_order: bool,
-) -> None:
-    session.add(
-        Change(
-            upload=upload,
-            order=order,
-            is_new_order=is_new_order,
-            kinds=[k.value for k in kinds],
-            decision=decision,
-            entries=[
-                ChangeEntry(
-                    field=d.field, product_code=d.product_code, old_value=d.old, new_value=d.new
-                )
-                for d in diffs
-            ],
-        )
+) -> Change:
+    change = Change(
+        upload=upload,
+        order=order,
+        is_new_order=is_new_order,
+        kinds=[k.value for k in kinds],
+        decision=decision,
+        entries=[
+            ChangeEntry(field=d.field, product_code=d.product_code, old_value=d.old, new_value=d.new)
+            for d in diffs
+        ],
     )
+    session.add(change)
+    return change

@@ -16,6 +16,7 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from bakery.admin import cutoff_days
 from bakery.binding import uploader_notice
 from bakery.checks import StoredOrder, order_warnings
 from bakery.clock import today_taipei
@@ -32,6 +33,7 @@ from bakery.parsing import (
     sort_findings,
 )
 from bakery.reply import render_reply, site_url
+from bakery.reviews import report_decisions
 
 log = logging.getLogger(__name__)
 
@@ -119,10 +121,16 @@ def _process(
         parsed = _without_live_orders(session, store.code, parsed)
     stored = _stored_orders(session, store.code, parsed)
     merged = merge_orders(
-        session, upload=upload, store_code=store.code, orders=parsed.orders, historical=historical
+        session,
+        upload=upload,
+        store_code=store.code,
+        orders=parsed.orders,
+        today=today,
+        cutoff_days=cutoff_days(session),
+        historical=historical,
     )
-    # Orders re-sent unchanged are not mentioned again, warnings included.
-    unchanged = set(merged.unchanged_order_nos)
+    # Orders re-sent unchanged (or re-sending a 待確認) are not mentioned again, warnings included.
+    unchanged = {*merged.unchanged_order_nos, *(r.order_no for r in merged.repeated)}
     warnings = order_warnings([o for o in parsed.orders if o.order_no not in unchanged], today, stored)
     if historical:
         warnings = [w for w in warnings if w.kind not in _PICKUP_WARNINGS]
@@ -137,6 +145,9 @@ def _process(
         new_order_nos=merged.new_order_nos,
         unchanged_order_nos=merged.unchanged_order_nos,
         changes=merged.changes,
+        repeated=merged.repeated,
+        # Nobody reads a 歷史資料匯入's reply: decisions wait for the 門市's next real upload.
+        decisions=() if historical else report_decisions(session, upload=upload, store_code=store.code),
     )
 
 

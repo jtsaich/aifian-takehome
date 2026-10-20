@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}待處理{% endblock %}
+{% macro review_cells(r) %}
+{% set change = r.change %}{% set upload = change.upload %}
+      <td>{{ change.order.store.name }}（{{ change.order.store_code }}）</td>
+      <td class="order-no"><a href="/orders/{{ change.order_id }}">{{ change.order.order_no }}</a></td>
+      <td class="kinds">{% for k in change.change_kinds %}{{ kind_labels[k] }}{% if not loop.last %}＋{% endif %}{% endfor %}
+        <br><span class="muted">{{ "疑似單號重複使用，不看截止點" if change.change_kinds|length == 1 and change.change_kinds[0] == "suspected_reuse" else "已過修改截止點" }}</span></td>
+      <td>
+        <ul class="diffs">
+          {% for e in change.entries %}
+          <li>{{ field_labels[e.field] }}{% if e.product %}（{{ e.product.name }}）{% endif %}：{{ show_value(e.field, e.old_value) or "空白" }} → {{ show_value(e.field, e.new_value) or "空白" }}</li>
+          {% endfor %}
+        </ul>
+      </td>
+      <td><a href="/uploads/{{ upload.id }}">上傳 #{{ upload.id }}</a><br>{{ upload.received_at|taipei }}<br>{{ (upload.uploader.display_name or upload.uploader.line_user_id) if upload.uploader else "" }}</td>
+{% endmacro %}
+{% block content %}
+<p class="muted">過了修改截止點、會影響生產的修改，以及疑似單號重複使用，都要等總部確認或退回。確認之後才套用；退回的話系統沿用修改前的內容。處理結果會附在該門市下一次上傳的回覆最前面。</p>
+{% set waiting = reviews|selectattr("status", "equalto", "pending")|list %}
+{% set decided = reviews|rejectattr("status", "equalto", "pending")|list %}
+<h2>等總部處理（{{ waiting|length }}）</h2>
+<table>
+  <thead><tr><th>門市</th><th>單號</th><th>修改類型</th><th>舊值 → 新值</th><th>哪一次上傳</th>{% if can(Area.CONFIRMATIONS) %}<th></th>{% endif %}</tr></thead>
+  <tbody>
+    {% for r in waiting %}
+    <tr class="review pending" id="review-{{ r.id }}">
+      {{ review_cells(r) }}
+      {% if can(Area.CONFIRMATIONS) %}
+      <td>
+        <form method="post" action="/reviews">
+          <input type="hidden" name="review_id" value="{{ r.id }}">
+          <button type="submit" name="decision" value="confirm">確認</button>
+          <button type="submit" name="decision" value="reject">退回</button>
+        </form>
+      </td>
+      {% endif %}
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="muted">沒有待確認的修改</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>已處理</h2>
+<table>
+  <thead><tr><th>門市</th><th>單號</th><th>修改類型</th><th>舊值 → 新值</th><th>哪一次上傳</th><th>結果</th><th>告知門市</th></tr></thead>
+  <tbody>
+    {% for r in decided %}
+    <tr class="review {{ r.status }}" id="review-{{ r.id }}">
+      {{ review_cells(r) }}
+      <td class="decision">{{ "已確認" if r.status == "confirmed" else "已退回" }}（{{ r.decided_by.display_name }}，{{ r.decided_at|taipei }}）</td>
+      <td>{% if r.reported_upload_id %}<a href="/uploads/{{ r.reported_upload_id }}">上傳 #{{ r.reported_upload_id }} 的回覆</a>{% else %}門市下次上傳時告知{% endif %}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="muted">還沒有處理過的待確認</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

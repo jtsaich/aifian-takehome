@@ -15,13 +15,14 @@ from datetime import date
 from typing import Any
 
 from bakery.changes import DATE_FIELDS, FIELD_LABELS, KIND_LABELS
-from bakery.models import ChangeDecision, ChangeField, ChangeKind
+from bakery.models import ChangeDecision, ChangeField, ChangeKind, LineStatus, ReviewStatus
 from bakery.outcome import (
     Failure,
     FailureKind,
     FieldDiff,
     Finding,
     FindingKind,
+    HeldChange,
     OrderChange,
     Severity,
     SkipReason,
@@ -41,7 +42,9 @@ PROCESSING_FAILED = "這份檔案沒處理成功，總部已收到通知。"
 # The 廚房彙總 page (bakery.web.routes.kitchen_summary), linked at the end of every reply.
 KITCHEN_SUMMARY_PATH = "/kitchen"
 
+_DECISIONS_TITLE = "【總部已處理您之前的待確認】"
 _CHANGES_TITLE = "【修改】"
+_REPEATED_TITLE = "【之前傳過的修改】"
 _SECTIONS: tuple[tuple[Severity, str], ...] = (
     (Severity.ERROR, "【沒有收，請改好後再傳一次】"),
     (Severity.WARNING, "【已先收下，請再確認】"),
@@ -60,7 +63,12 @@ def render_reply(outcome: UploadOutcome, report_url: str) -> Reply:
     head = _summary(outcome)
     if outcome.uploader_notice is not None:
         head = f"{uploader_notice_text(outcome.uploader_notice)}\n{head}"
+    if outcome.decisions:
+        # 總部's decisions come first of all: the 門市 is told nowhere else (no push).
+        decided = "".join(f"\n・{decision_text(d)}" for d in outcome.decisions)
+        head = f"{_DECISIONS_TITLE}{decided}\n\n{head}"
     items = [(_CHANGES_TITLE, f"・{change_text(c)}") for c in outcome.changes]
+    items += [(_REPEATED_TITLE, f"・{repeated_text(r)}") for r in outcome.repeated]
     items += [
         (title, f"・{finding_text(f)}")
         for severity, title in _SECTIONS
@@ -114,7 +122,7 @@ def _summary(outcome: UploadOutcome) -> str:
     if outcome.failure is not None:
         return f"這份檔案沒有收：{failure_text(outcome.failure)}"
     text = f"{outcome.store_name}（{outcome.store_code}）："
-    if outcome.changes or outcome.unchanged_order_nos:
+    if outcome.changes or outcome.unchanged_order_nos or outcome.repeated:
         text += _merge_summary(outcome)
     else:
         text += f"收到 {outcome.order_count} 張喜餅訂單、{outcome.line_count} 筆訂單明細。"
@@ -152,6 +160,12 @@ def _merge_summary(outcome: UploadOutcome) -> str:
         if held:
             part += f"，其中 {held} 張待總部確認"
         parts.append(part)
+    still_held = sum(1 for r in outcome.repeated if r.status == ReviewStatus.PENDING)
+    if still_held:
+        parts.append(f"{still_held} 張修改仍待總部確認")
+    rejected = sum(1 for r in outcome.repeated if r.status == ReviewStatus.REJECTED)
+    if rejected:
+        parts.append(f"{rejected} 張修改已被總部退回")
     if not parts:
         return "這份檔案的內容之前都收過了，沒有新單，也沒有修改。"
     return "；".join(parts) + "。"
@@ -166,8 +180,68 @@ def change_text(c: OrderChange) -> str:
         details = [_dates(_only(c.diffs, ChangeField.PICKUP_ON))]  # 改取貨日 already says what
     text = f"單號 {c.order_no}：{'＋'.join(KIND_LABELS[k] for k in c.kinds)}，{'；'.join(details)}"
     if c.decision == ChangeDecision.HELD:
-        text += "（待總部確認）"
+        text += "（已過截止點，待總部確認）"  # held and not a reused 單號: the cutoff
     return text
+
+
+def repeated_text(h: HeldChange) -> str:
+    """A 待確認 sent again unchanged: 「單號 0101 龍鳳喜餅 盒數 120 仍待總部確認」, or
+    already 退回 and what to write back so the reminder stops."""
+    if h.kinds == (ChangeKind.SUSPECTED_REUSE,):
+        if h.status == ReviewStatus.PENDING:
+            return f"單號 {h.order_no}：電話不同的這份內容仍待總部確認，這張單先照舊。"
+        return f"單號 {h.order_no}：電話不同的這份內容{_REUSE_REJECTED}"
+    what, still = _held_parts(h.diffs)
+    if h.status == ReviewStatus.PENDING:
+        return f"單號 {h.order_no} {what} 仍待總部確認"
+    return f"單號 {h.order_no} {what} 已被總部退回，{still}"
+
+
+def decision_text(h: HeldChange) -> str:
+    """總部 confirmed or 退回 a 待確認 since the 門市's last upload."""
+    if h.kinds == (ChangeKind.SUSPECTED_REUSE,):
+        if h.status == ReviewStatus.CONFIRMED:
+            return f"單號 {h.order_no}：電話不同的那份內容，總部確認是同一張單，已改成新的內容。"
+        return f"單號 {h.order_no}：電話不同的那份內容{_REUSE_REJECTED}"
+    what, still = _held_parts(h.diffs)
+    if h.status == ReviewStatus.CONFIRMED:
+        return f"單號 {h.order_no} {what}：總部已確認，已照新的內容計算。"
+    return f"單號 {h.order_no} {what}：總部已退回，{still}。"
+
+
+_REUSE_REJECTED = (
+    "已被總部退回，這個單號仍是原本那張單。請把 Excel 改回原本的內容；如果是另一位客人的單，請開新的單號再傳。"
+)
+
+
+def _held_parts(diffs: Sequence[FieldDiff]) -> tuple[str, str]:
+    """The production side of a held 修改: what the file says, and (once 退回) what the
+    system still counts and what to write back in Excel, part by part in the same order:
+    「龍鳳喜餅 盒數 120」,「系統仍以 80 盒計算，請把 Excel 改回 80」."""
+    parts: list[tuple[str, str, str]] = []
+    for d in diffs:
+        if d.field is ChangeField.PICKUP_ON:
+            old = _date(date.fromisoformat(d.old))
+            parts.append((f"取貨日 {_date(date.fromisoformat(d.new))}", f"取貨日 {old}", old))
+    for line in _by_product([d for d in diffs if d.product_code]):
+        name = line[0].product_name
+        status = next((d for d in line if d.field is ChangeField.STATUS), None)
+        quantity = next((d for d in line if d.field is ChangeField.QUANTITY), None)
+        if status is not None and status.old is None:
+            continue  # a new line already marked 取消: nothing to produce either way
+        if status is not None and status.new == LineStatus.CANCELLED:
+            parts.append((f"{name} 取消", f"{name} 照常生產", "狀態空白"))
+        elif status is not None:
+            parts.append((f"{name} 恢復生產", f"{name} 已取消", "狀態「取消」"))
+        elif quantity is not None and quantity.old is None:
+            parts.append((f"新增{name} {quantity.new} 盒", f"沒有{name}", f"沒有{name}"))
+        elif quantity is not None:
+            parts.append((f"{name} 盒數 {quantity.new}", f"{quantity.old} 盒", quantity.old))
+    if not parts:  # held only for the cutoff, so never without a production part
+        raise AssertionError("a held 修改 with nothing that affects production")
+    what, counted, write_back = ("、".join(column) for column in zip(*parts, strict=True))
+    gap = " " if counted[-1].isascii() else ""  # 「取貨日 2026/11/28 計算」, 「80 盒計算」
+    return what, f"系統仍以 {counted}{gap}計算，請把 Excel 改回 {write_back}"
 
 
 def _reuse_text(diffs: Sequence[FieldDiff]) -> str:

@@ -18,6 +18,7 @@ from bakery.web.access import Area
 from bakery.web.auth import requires
 from bakery.web.routes import (
     bindings,
+    catalog_admin,
     customers,
     demo_upload,
     history_import,
@@ -26,6 +27,7 @@ from bakery.web.routes import (
     login,
     master_list,
     orders,
+    reviews,
     uploads,
 )
 
@@ -42,6 +44,10 @@ ROUTERS: tuple[tuple[APIRouter, Area | None], ...] = (
     (demo_upload.router, Area.OPERATIONS),
     (bindings.router, Area.OPERATIONS),
     (bindings.confirm_router, Area.CONFIRMATIONS),
+    (reviews.router, Area.OPERATIONS),
+    (reviews.decide_router, Area.CONFIRMATIONS),
+    (catalog_admin.router, Area.OPERATIONS),
+    (catalog_admin.edit_router, Area.CONFIRMATIONS),
     (customers.router, Area.CUSTOMERS),
     (history_import.router, Area.HISTORY_IMPORT),
 )
