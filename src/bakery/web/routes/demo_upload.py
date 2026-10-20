@@ -10,8 +10,9 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from bakery.models import Uploader
+from bakery.models import Account, Uploader
 from bakery.pipeline import process_upload
+from bakery.web.auth import current_account
 from bakery.web.deps import get_now, get_session, templates
 
 router = APIRouter()
@@ -36,6 +37,7 @@ def upload(
     request: Request,
     session: Annotated[Session, Depends(get_session)],
     now: Annotated[datetime, Depends(get_now)],
+    account: Annotated[Account, Depends(current_account)],
     uploader_line_id: Annotated[str, Form()],
     file: UploadFile,
 ) -> HTMLResponse:
@@ -45,6 +47,7 @@ def upload(
         filename=file.filename or "upload.xlsx",
         file_bytes=file.file.read(),
         now=now,
+        submitted_by_id=account.id,
     )
     return _page(
         request,

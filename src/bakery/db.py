@@ -9,7 +9,7 @@ from alembic.config import Config
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session
 
-from bakery.seed import seed_reference_data
+from bakery.seed import seed_demo_accounts, seed_reference_data
 
 
 def database_url() -> str:
@@ -43,11 +43,13 @@ def upgrade_database(url: str) -> None:
 
 
 def init_main() -> None:
-    """`bakery-init`: bring the schema to head and seed reference data. Safe to rerun."""
+    """`bakery-init`: bring the schema to head, seed reference data and the demo
+    accounts. Safe to rerun."""
     url = database_url()
     upgrade_database(url)
     engine = make_engine(url)
     with Session(engine) as session:
         seed_reference_data(session)
+        seed_demo_accounts(session)
         session.commit()
     engine.dispose()

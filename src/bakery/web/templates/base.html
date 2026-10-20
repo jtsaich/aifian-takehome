@@ -18,13 +18,25 @@
   form.filters, form.upload { display: flex; gap: 1rem; align-items: end; flex-wrap: wrap; margin-bottom: 1rem; }
   label { display: flex; flex-direction: column; gap: .2rem; font-size: .9rem; }
   .muted { color: #777; }
+  nav .account { margin-left: auto; display: flex; gap: .75rem; align-items: center; color: #555; }
+  nav .account form { margin: 0; }
+  form.login { display: flex; flex-direction: column; gap: .75rem; max-width: 18rem; }
+  .error { color: #b00020; font-weight: bold; }
 </style>
 </head>
 <body>
 <nav>
-  <a href="/orders">總表</a>
+  {% if can(Area.MASTER_LIST) %}<a href="/orders">總表</a>{% endif %}
+  {% if can(Area.OPERATIONS) %}
   <a href="/uploads">上傳紀錄</a>
   <a href="/demo/upload">模擬群組上傳</a>
+  {% endif %}
+  {% if account %}
+  <span class="account">
+    <span class="account-name">{{ account.display_name }}</span>
+    <form method="post" action="/logout"><button type="submit">登出</button></form>
+  </span>
+  {% endif %}
 </nav>
 <h1>{{ self.title() }}</h1>
 {% block content %}{% endblock %}
