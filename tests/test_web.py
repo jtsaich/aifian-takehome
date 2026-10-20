@@ -18,7 +18,7 @@ def _post_upload(client, file_bytes: bytes, *, uploader="Udemo-TC01", filename="
 
 
 def _order_nos(html: str) -> list[str]:
-    return re.findall(r'<td class="order-no">([^<]*)</td>', html)
+    return re.findall(r'<td class="order-no">(?:<a [^>]*>)?([^<]*)', html)
 
 
 def test_demo_upload_page_is_marked_demo_only_and_lists_demo_uploaders(client):

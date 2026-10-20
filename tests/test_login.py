@@ -28,6 +28,7 @@ PUBLIC = {("GET", "/"), ("GET", "/login"), ("POST", "/login"), ("POST", "/logout
 # (ticket 05: 廚房 sees only 總表 and 廚房彙總; 總部人員 and 老闆 see everything here).
 PAGES: dict[str, set[str]] = {
     "/orders": {"hq-lin", "hq-chen", "kitchen", "owner"},
+    "/orders/{order_id}": {"hq-lin", "hq-chen", "owner"},
     "/uploads": {"hq-lin", "hq-chen", "owner"},
     "/uploads/{upload_id}": {"hq-lin", "hq-chen", "owner"},
     "/uploads/{upload_id}/original": {"hq-lin", "hq-chen", "owner"},
@@ -44,7 +45,7 @@ def _registered_routes(engine) -> set[tuple[str, str]]:
 
 
 def _url(path: str) -> str:
-    return path.replace("{upload_id}", "1")
+    return path.replace("{upload_id}", "1").replace("{order_id}", "1")
 
 
 def _upload(client, file_bytes: bytes):
@@ -108,7 +109,7 @@ def test_every_page_except_login_requires_an_account(engine, make_client, orders
 def test_anonymous_visitors_see_no_order_data(make_client, orders_exist):
     anon = make_client(None)
 
-    for path in ("/", "/orders", "/uploads", "/uploads/1/original", "/demo/upload"):
+    for path in ("/", "/orders", "/orders/1", "/uploads", "/uploads/1/original", "/demo/upload"):
         resp = anon.get(path)
         assert resp.url.path == "/login", path
         for secret in ("0201", "王小姐", "0912-345-678", "陳志豪", "台中中正店"):

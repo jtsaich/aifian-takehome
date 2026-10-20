@@ -57,7 +57,7 @@ def process_upload(
     session.commit()
 
     try:
-        outcome = _process(session, file_bytes, now)
+        outcome = _process(session, upload, file_bytes, now)
     except FileRejected as rejected:
         session.rollback()
         outcome = _failed(rejected.failure)
@@ -77,15 +77,18 @@ def process_upload(
     )
 
 
-def _process(session: Session, file_bytes: bytes, now: datetime) -> UploadOutcome:
+def _process(session: Session, upload: Upload, file_bytes: bytes, now: datetime) -> UploadOutcome:
     today = today_taipei(now)
     parsed = parse_upload(file_bytes, _product_lookup(session), today)
     store = session.get(Store, parsed.store_code)
     if store is None:
         raise FileRejected(Failure(FailureKind.UNKNOWN_STORE, {"store_code": parsed.store_code}))
 
-    warnings = order_warnings(parsed.orders, today, _stored_orders(session, store.code, parsed))
-    merge_orders(session, store_code=store.code, orders=parsed.orders)
+    stored = _stored_orders(session, store.code, parsed)
+    merged = merge_orders(session, upload=upload, store_code=store.code, orders=parsed.orders)
+    # Orders re-sent unchanged are not mentioned again, warnings included.
+    unchanged = set(merged.unchanged_order_nos)
+    warnings = order_warnings([o for o in parsed.orders if o.order_no not in unchanged], today, stored)
     return UploadOutcome(
         store_code=store.code,
         store_name=store.name,
@@ -93,6 +96,9 @@ def _process(session: Session, file_bytes: bytes, now: datetime) -> UploadOutcom
         line_count=parsed.line_count,
         rejected_rows=parsed.rejected_rows,
         findings=sort_findings([*parsed.findings, *warnings], parsed.sheet_names),
+        new_order_nos=merged.new_order_nos,
+        unchanged_order_nos=merged.unchanged_order_nos,
+        changes=merged.changes,
     )
 
 

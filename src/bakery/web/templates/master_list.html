@@ -31,7 +31,7 @@
     <tr>
       <td>{{ o.pickup_on|ymd }}</td>
       <td>{{ o.store.name }}</td>
-      <td class="order-no">{{ o.order_no }}</td>
+      <td class="order-no">{% if can(Area.OPERATIONS) %}<a href="/orders/{{ o.id }}">{{ o.order_no }}</a>{% else %}{{ o.order_no }}{% endif %}</td>
       <td>{{ line.product.name }}</td>
       <td class="num">{{ line.quantity }}</td>
       <td>{{ "取消" if line.status == "cancelled" else "" }}</td>

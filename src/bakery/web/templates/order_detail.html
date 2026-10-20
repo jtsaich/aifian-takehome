@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}{{ order.store.name }} 單號 {{ order.order_no }}{% endblock %}
+{% block content %}
+<h2>目前內容</h2>
+<table>
+  <tbody>
+    <tr><th>門市</th><td>{{ order.store.name }}（{{ order.store_code }}）</td></tr>
+    <tr><th>單號</th><td>{{ order.order_no }}</td></tr>
+    <tr><th>訂購人姓名</th><td>{{ order.orderer_name or "" }}</td></tr>
+    <tr><th>電話</th><td>{{ order.phone or "" }}</td></tr>
+    <tr><th>接單日</th><td>{{ order.received_on|ymd }}</td></tr>
+    <tr><th>取貨日</th><td>{{ order.pickup_on|ymd }}</td></tr>
+    <tr><th>宴客日</th><td>{{ order.banquet_on|ymd }}</td></tr>
+    <tr><th>新人姓名</th><td>{{ order.couple_names or "" }}</td></tr>
+    <tr><th>接單人</th><td>{{ order.taken_by or "" }}</td></tr>
+  </tbody>
+</table>
+<p></p>
+<table>
+  <thead><tr><th>品項</th><th>盒數</th><th>狀態</th><th>備註</th></tr></thead>
+  <tbody>
+    {% for line in order.lines %}
+    <tr>
+      <td>{{ line.product.name }}</td>
+      <td class="num">{{ line.quantity }}</td>
+      <td>{{ "取消" if line.status == "cancelled" else "" }}</td>
+      <td>{{ line.note or "" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>修改歷史</h2>
+<p class="muted">每一次帶進這張單或改到這張單的上傳，依時間排列。紀錄只會新增，不能修改或刪除。</p>
+{% for change in changes %}
+{% set upload = change.upload %}
+<section class="change">
+  <h3>
+    {{ upload.received_at|taipei }}　
+    {% if change.is_new_order %}新單{% else %}{% for k in change.change_kinds %}{{ kind_labels[k] }}{% if not loop.last %}＋{% endif %}{% endfor %}{% endif %}
+    {% if change.decision == "held" %}<span class="error">（未套用，這張單先照舊，待總部確認）</span>{% endif %}
+  </h3>
+  <p>
+    <a href="/uploads/{{ upload.id }}">上傳 #{{ upload.id }}</a>　{{ upload.filename }}　
+    傳檔者：{{ upload.uploader.display_name or upload.uploader.line_user_id }}　
+    送出方式：{{ "模擬群組上傳：" ~ upload.submitted_by.display_name if upload.submitted_by else "LINE" }}
+  </p>
+  <table>
+    <thead><tr><th>欄位</th><th>品項</th><th>舊值</th><th>新值</th></tr></thead>
+    <tbody>
+      {% for e in change.entries %}
+      <tr>
+        <td>{{ field_labels[e.field] }}</td>
+        <td>{{ e.product.name if e.product else "" }}</td>
+        <td>{{ show_value(e.field, e.old_value) }}</td>
+        <td>{{ show_value(e.field, e.new_value) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% else %}
+<p class="muted">沒有紀錄。</p>
+{% endfor %}
+{% endblock %}
