@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}客人資料{% endblock %}
+{% block content %}
+<p class="muted">一支電話（正規化後）算一位客人。只供內部查詢，不是會員，也不用來發訊息。</p>
+<p><a href="/customers.xlsx">下載 .xlsx</a></p>
+
+<p class="muted">共 {{ records.customers|length }} 位客人</p>
+<table>
+  <thead>
+    <tr>
+      <th>電話</th><th>訂單數</th><th>總盒數</th><th>第一次接單日</th><th>最近一次接單日</th>
+      <th>下過單的門市</th><th>訂購人姓名</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in records.customers %}
+    <tr class="customer">
+      <td><a href="/customers/{{ c.key }}">{{ c.phone }}</a></td>
+      <td class="num order-count">{{ c.order_count }}</td>
+      <td class="num total-boxes">{{ c.total_boxes }}</td>
+      <td>{{ c.first_received_on|ymd }}</td>
+      <td>{{ c.latest_received_on|ymd }}</td>
+      <td>{{ c.stores|map(attribute="name")|join("、") }}</td>
+      <td>{{ c.orderer_names|join("、") }}{% if c.has_several_names %} <span class="flag">姓名不一致</span>{% endif %}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="muted">還沒有客人資料</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if records.unmatched %}
+<h2>電話無法辨識的喜餅訂單</h2>
+<p class="muted">這些單沒有電話，或電話格式不對（上傳時已提醒門市），所以沒有算進任何一位客人。</p>
+<table>
+  <thead><tr><th>門市</th><th>單號</th><th>接單日</th><th>訂購人姓名</th><th>電話</th></tr></thead>
+  <tbody>
+    {% for o in records.unmatched %}
+    <tr class="unmatched">
+      <td>{{ o.store.name }}</td>
+      <td><a href="/orders/{{ o.id }}">{{ o.order_no }}</a></td>
+      <td>{{ o.received_on|ymd }}</td>
+      <td>{{ o.orderer_name or "" }}</td>
+      <td>{{ o.phone or "（沒填）" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

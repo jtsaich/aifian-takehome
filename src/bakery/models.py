@@ -184,7 +184,8 @@ class Order(Base):
     store_code: Mapped[str] = mapped_column(ForeignKey("stores.code"))
     order_no: Mapped[str] = mapped_column(String(64))
     orderer_name: Mapped[str | None] = mapped_column(String(128))
-    phone: Mapped[str | None] = mapped_column(String(64))  # as typed; normalized later (Customer)
+    # As typed. The 客人 is derived from it on read (bakery.customers), never stored.
+    phone: Mapped[str | None] = mapped_column(String(64))
     received_on: Mapped[date] = mapped_column(Date)
     pickup_on: Mapped[date] = mapped_column(Date, index=True)
     banquet_on: Mapped[date | None] = mapped_column(Date)

@@ -15,7 +15,7 @@ from bakery.db import make_engine
 from bakery.web import auth
 from bakery.web.access import Area
 from bakery.web.auth import requires
-from bakery.web.routes import demo_upload, login, master_list, orders, uploads
+from bakery.web.routes import customers, demo_upload, login, master_list, orders, uploads
 
 # Every page group, with the area of the access matrix (bakery.web.access) it belongs
 # to. None means public: only login/logout, and later the LINE webhook, which
@@ -26,6 +26,7 @@ ROUTERS: tuple[tuple[APIRouter, Area | None], ...] = (
     (orders.router, Area.OPERATIONS),
     (uploads.router, Area.OPERATIONS),
     (demo_upload.router, Area.OPERATIONS),
+    (customers.router, Area.CUSTOMERS),
 )
 
 

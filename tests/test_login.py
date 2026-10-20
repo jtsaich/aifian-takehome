@@ -33,6 +33,9 @@ PAGES: dict[str, set[str]] = {
     "/uploads/{upload_id}": {"hq-lin", "hq-chen", "owner"},
     "/uploads/{upload_id}/original": {"hq-lin", "hq-chen", "owner"},
     "/demo/upload": {"hq-lin", "hq-chen", "owner"},
+    "/customers": {"hq-lin", "hq-chen", "owner"},
+    "/customers/{order_id}": {"hq-lin", "hq-chen", "owner"},
+    "/customers.xlsx": {"hq-lin", "hq-chen", "owner"},
 }
 ACCOUNTS = ("hq-lin", "hq-chen", "kitchen", "owner")
 
@@ -109,7 +112,9 @@ def test_every_page_except_login_requires_an_account(engine, make_client, orders
 def test_anonymous_visitors_see_no_order_data(make_client, orders_exist):
     anon = make_client(None)
 
-    for path in ("/", "/orders", "/orders/1", "/uploads", "/uploads/1/original", "/demo/upload"):
+    paths = ("/", "/orders", "/orders/1", "/uploads", "/uploads/1/original", "/demo/upload",
+             "/customers", "/customers/1", "/customers.xlsx")
+    for path in paths:
         resp = anon.get(path)
         assert resp.url.path == "/login", path
         for secret in ("0201", "王小姐", "0912-345-678", "陳志豪", "台中中正店"):
@@ -157,6 +162,7 @@ def test_kitchen_nav_shows_only_the_master_list(make_client):
     assert 'href="/orders"' in nav
     assert 'href="/uploads"' not in nav
     assert 'href="/demo/upload"' not in nav
+    assert 'href="/customers"' not in nav
 
 
 def test_login_returns_to_the_page_first_asked_for(make_client):

@@ -16,7 +16,7 @@ from bakery import template as t
 from bakery.models import ChangeDecision, ChangeField, ChangeKind, LineStatus, Order, OrderLine
 from bakery.outcome import FieldDiff
 from bakery.parsing import ParsedLine, ParsedOrder
-from bakery.phone import phone_digits
+from bakery.phone import normalize_phone
 
 # Order-level fields in 範本 column order. Every ChangeField value is also the attribute
 # name on Order / OrderLine and, for order fields, on ParsedOrder.
@@ -155,8 +155,8 @@ def _same_phone(old: str | None, new: str | None) -> bool:
     """The same number written differently (0912-345-678 / 0912345678 / +886 912 345 678)."""
     if not old or not new:
         return False
-    digits = phone_digits(old)
-    return digits is not None and digits == phone_digits(new)
+    phone = normalize_phone(old)
+    return phone is not None and phone == normalize_phone(new)
 
 
 def _status(line: ParsedLine) -> LineStatus:
