@@ -4,7 +4,7 @@
 
 **Blocked by:** 03（部署到 Cloud Run＋Neon）、04（欄位檢查、欄名放寬與多分頁）、05（角色登入）、11（[HITL] 建 LINE OA 與 demo 群組）
 
-**Status:** ready-for-human
+**Status:** resolved
 
 - [x] 驗證 webhook 簽章，簽章不對的請求直接拒絕。
 - [x] 依 `webhookEventId` 去重複，LINE 重送的事件不會被處理兩次。
@@ -19,8 +19,10 @@
   - 一家門市可以有好幾位傳檔者。
 - [x] 處理失敗也要回覆，寫「這份檔案沒處理成功，總部已收到通知」，同時保存原檔和失敗原因。
 - [x] log 裡不能出現姓名和電話。
-- [ ] 在 11 建好的群組裡，實際傳一份 01 的檔案，確認一切正常。
+- [x] 在 11 建好的群組裡，實際傳一份 01 的檔案，確認一切正常。
 
 ## Comments
 
 - 2026-10-21：程式與測試在 `mvp` 完成（merge 38a0dca）。剩下的實機驗收需要 Jack 的帳號（見 README 部署與 LINE 章節），所以改成 ready-for-human。
+
+- 2026-10-21：Jack 在真的群組裡傳檔，本機（ngrok）實機驗收通過。
