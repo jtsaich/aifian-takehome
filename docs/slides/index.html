@@ -65,7 +65,37 @@
   </div>
   <h3>判斷</h3>
   <p>會員不只是資料的問題，要先弄清楚會員 App 對老闆代表什麼：是品牌聲量和面子？是營收、獲利？還是觸及更多客人？<strong>我的判斷是：沒有進一步討論，特別是跟這家糕餅連鎖的行銷人員談過之前，這還不是一個清楚、值得去追的目標。</strong></p>
-  <div class="num">2</div>
+</section>
+
+<section>
+  <h2>老闆的回覆</h2>
+  <div class="card accent">
+    <p>「我一開始就說得很清楚，我們想要的是跟大品牌一樣的會員 App。門市那幾筆喜餅訂單記錯，純粹是員工自己粗心，我交代大家看仔細一點就好。你說要先改門市用 Excel 的那些事，為什麼我要花錢去弄那個？對我有什麼好處？」</p>
+  </div>
+  <div class="cols" style="margin-top:18px">
+    <div>
+      <h3 style="margin-top:0">我們怎麼讀這段話</h3>
+      <ul class="small">
+        <li>會員 App 是老闆的目標，也是這件事的驅動力；計畫要以它為主軸</li>
+        <li>他問的是「對我有什麼好處」，不是反對打底；缺的是基礎工作怎麼走到 App 的那條線</li>
+        <li>「交代大家看仔細」今天做得到；會員上線後，單量和要處理的事變多，同一批人還要顧會員</li>
+      </ul>
+    </div>
+    <div>
+      <h3 style="margin-top:0">調整</h3>
+      <ul class="small">
+        <li>不再追問，直接用大品牌的做法推出「跟大品牌一樣」要哪些功能</li>
+        <li>用 App 的畫面倒推：每一塊需要什麼、第一階段哪件事在準備它（下一頁）</li>
+        <li>訂單系統定位成會員 App 的第一階段：先空出人力、先把資料打好，會員上線後的新工作才接得住</li>
+        <li>第 6 週把會員 App 試用版拿給老闆和同仁試</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>從會員 App 倒推回第一週</h2>
+  <img class="chart" src="../member-app-path.svg" alt="會員 App 示意畫面與每一塊需要的基礎工作">
 </section>
 
 <section>
@@ -81,7 +111,6 @@
     <h3 style="margin-top:0">有一部分不是軟體問題</h3>
     <p>如果錯在電話裡就聽錯（客人說 15 號、店員寫成 16 號），表格擋不住。軟體能讓錯變少，人還是會出錯，所以流程（掛電話前覆誦、用 LINE 傳確認給客人）和系統要一起設計。上一季那 3 筆錯在哪一步，是第一週要追的第一件事。</p>
   </div>
-  <div class="num">3</div>
 </section>
 
 <section>
@@ -97,13 +126,11 @@
     <tr><td>A7</td><td>總部有人專門彙整各店 Excel 再交給廚房</td><td>主指標改看廚房拿到數量的時間點</td></tr>
   </table>
   <p class="muted small">這些問題已用 email 提出；沒有回覆也照假設往下做，答案會對到「如果答案是 X，我會改 Y」。</p>
-  <div class="num">4</div>
 </section>
 
 <section>
   <h2>現況流程</h2>
   <img class="chart" src="../workflow-now.svg" alt="現況泳道圖">
-  <div class="num">5</div>
 </section>
 
 <section>
@@ -126,13 +153,11 @@
       </ul>
     </div>
   </div>
-  <div class="num">6</div>
 </section>
 
 <section>
   <h2>導入後流程</h2>
   <img class="chart" src="../workflow-after.svg" alt="導入後泳道圖">
-  <div class="num">7</div>
 </section>
 
 <section>
@@ -159,7 +184,6 @@
   <div class="card accent" style="margin-top:14px">
     <p class="small" style="margin:0"><strong>先在 1–2 家門市試行。</strong>第一週要緊密跟進：流程裡有沒有預料外的情況，現場的人怎麼接受新做法。導入要花多少時間、門市適應的成本、跟現有系統整合的成本，都是這個 MVP 要一起評估的。</p>
   </div>
-  <div class="num">8</div>
 </section>
 
 <section>
@@ -173,7 +197,6 @@
     <tr><td>AI 解析</td><td>同樣的輸入要得到同樣的結果，每一筆都能追溯</td></tr>
     <tr><td>用電話猜是哪一張單</td><td>猜錯正好造成要解決的那種錯；單號必填，靠編號訂購單補</td></tr>
   </table>
-  <div class="num">9</div>
 </section>
 
 <section>
@@ -188,7 +211,6 @@
     <tr><td><strong>自建</strong>（Python＋Postgres）</td><td>Cloud Run、Neon 免費額度內</td><td>要有人維護</td></tr>
   </table>
   <p><strong>結論：MVP 自建。</strong>要解決的核心正是修改分類、截止點這些規則，放進試算表反而難測。降低維護風險：全部資料隨時能下載 Excel。客戶若本來就想換 POS，WiXtar 要認真比價。</p>
-  <div class="num">10</div>
 </section>
 
 <section>
@@ -198,7 +220,7 @@
     <div class="card accent">
       <h3 style="margin-top:0">主指標</h3>
       <p class="big">總部同仁每週花在彙整各店 Excel、核對訂單的時間</p>
-      <p class="small">第一週訪談先量現在的時數，試用兩週後再量；同時問這份總表能不能直接交給廚房。省下來的人力可以拿去做什麼，也一起問。</p>
+      <p class="small">第一週訪談先量現在的時數，試用兩週後再量；同時問這份總表能不能直接交給廚房。省下來的人力，留給會員上線後的新工作：查點數、回覆會員、發券。</p>
     </div>
     <div>
       <h3 style="margin-top:0">一起看的</h3>
@@ -215,19 +237,18 @@
       </ul>
     </div>
   </div>
-  <div class="num">11</div>
 </section>
 
 <section>
   <h2>第 1 週</h2>
   <table>
     <tr><th style="width:24%">做什麼</th><th>內容</th></tr>
+    <tr><td>會員 App 需求整理</td><td>跟老闆、行銷同仁各談一次，對照大品牌的點數、生日禮、回購推薦，列出第一版要有的功能</td></tr>
     <tr><td>訪談</td><td>總部負責彙整 Excel、再交給廚房的同仁；廚房；試用門市店長。量現在的工時和來回溝通的成本，逐筆追上一季那 3 筆</td></tr>
     <tr><td>試用版</td><td>統一範本、編號訂購單、官方帳號進群組、總表與廚房彙總</td></tr>
     <tr><td>1–2 家門市試營運</td><td>新舊做法並行，每天對一次；試用版直接拿回給彙整的同仁和廚房用。每天跟進預料外的情況和現場接受的程度</td></tr>
     <tr><td>POS 需求單</td><td>結帳時記下客人電話或 LINE 會員條碼；每晚 CSV 改成逐筆交易（收據號、時間）；另開「喜餅訂單取貨」品項並填單號；CSV 自動放到固定資料夾。請廠商分清楚調設定或改功能，改功能的報價排期。廠商一個月起跳，第一週提才趕得上第 4–6 週</td></tr>
   </table>
-  <div class="num">12</div>
 </section>
 
 <section>
@@ -235,11 +256,10 @@
   <table>
     <tr><th style="width:12%">週</th><th>做什麼</th><th style="width:30%">要學到什麼</th></tr>
     <tr><td>2–3</td><td>依訪談和試用調整；擴到六家門市；匯入歷史資料成客人資料。持續跟店員、協調廚房的同仁、行銷團隊談</td><td>彙整工時有沒有降；待確認一週幾筆，總部處理得來嗎</td></tr>
-    <tr><td>4–5</td><td>會員同意加入：取貨時掃 QR 加官方帳號、領 LINE 會員卡。廠商改好的話，讀 POS 逐筆 CSV，把喜餅訂單和門市消費掛到同一位會員</td><td>取貨時的加入率；現場消費有多少帶得到會員識別</td></tr>
-    <tr><td>6</td><td>跟老闆、行銷一起看會員數、回購、門市推廣的負擔，決定 LINE 會員卡夠不夠，還是要開發 App</td><td>App 要解決的是會員卡做不到的哪件事</td></tr>
+    <tr><td>4–5</td><td>LINE 會員卡上線：取貨時掃 QR 加官方帳號、領會員卡。同時做會員 App 試用版，資料接第一階段整理好的訂單與客人資料。廠商改好的話，讀 POS 逐筆 CSV，把門市消費掛到同一位會員</td><td>取貨時的加入率；現場消費有多少帶得到會員識別</td></tr>
+    <tr><td>6</td><td>會員 App 試用版給老闆和內部同仁試；一起看會員數、回購、門市推廣的負擔，決定正式版的範圍和預算</td><td>正式版要先做哪些功能、哪些交給 LINE 會員卡就夠</td></tr>
   </table>
   <p class="muted small">這張表依前幾週學到的東西調整。例如第 2 週待確認多到總部處理不來，先回頭調截止點，不往下擴店。</p>
-  <div class="num">13</div>
 </section>
 
 <section>
@@ -268,7 +288,6 @@
       <p class="muted small">三家廣告平台比對門市消費都用雜湊後的手機；現在的 CSV 是每日彙總，送不上去。</p>
     </div>
   </div>
-  <div class="num">14</div>
 </section>
 
 <section>
@@ -282,11 +301,10 @@
     <tr><td>管道與成本</td><td>LINE 先行；簡訊、Email 之後。3,000 會員每月 4 則：LINE 約 2,600 元、簡訊 8,400–9,720 元、Email 約 1,024 元</td><td>平台官方價格</td></tr>
     <tr><td>個資與點數</td><td>舊訂單電話不發行銷訊息，會員由客人自己加入；每則行銷訊息附拒收方式。免費點數可設效期，不做儲值</td><td>個資法 §7、§20；禮券規定（請客戶律師確認）</td></tr>
   </table>
-  <div class="num">15</div>
 </section>
 
 <section>
-  <h2>如果老闆直接要一支會員 App</h2>
+  <h2>會員 App：試用版與開發成本</h2>
   <div class="cols">
     <div>
       <h3 style="margin-top:0">做得到，但成本要攤開</h3>
@@ -305,8 +323,7 @@
       </ul>
     </div>
   </div>
-  <p class="muted small">第 6 週要 App 報價的條件：行銷說得出 LINE 做不到、又直接帶營收的功能；LINE 訊息費用變高；或老闆主要想要品牌自有通路。POS 還記不到會員，或取貨時加入的人很少，就先不做。</p>
-  <div class="num">16</div>
+  <p class="muted small">第 6 週決定正式版範圍時看的條件：行銷說得出直接帶營收的功能；LINE 訊息費用變高；老闆要品牌自有通路。POS 還記不到會員，或取貨時加入的人很少，正式版先縮小範圍，靠 LINE 會員卡撐住。</p>
 </section>
 
 <section>
@@ -335,7 +352,6 @@
       </ul>
     </div>
   </div>
-  <div class="num">17</div>
 </section>
 
 <section>
@@ -351,13 +367,13 @@
     <tr><td>會員目的</td><td>自有通路、品牌形象</td><td>才評估 App，先算清楚門市推廣成本</td></tr>
     <tr><td>客戶打算換 POS</td><td>是</td><td>認真評估 WiXtar 這類烘焙 POS</td></tr>
   </table>
-  <div class="num">18</div>
 </section>
 
 </div>
 <div class="nav"><button id="prev">←</button> <span id="pos"></span> <button id="next">→</button></div>
 <script>
   const slides = [...document.querySelectorAll("section")];
+  slides.forEach((s, k) => { if (k) s.insertAdjacentHTML("beforeend", `<div class="num">${k + 1}</div>`); });
   let i = Math.max(0, Math.min(slides.length - 1, (parseInt(location.hash.slice(1), 10) || 1) - 1));
   const show = () => {
     slides.forEach((s, k) => s.classList.toggle("on", k === i));
