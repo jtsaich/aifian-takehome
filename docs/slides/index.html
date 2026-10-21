@@ -148,9 +148,14 @@
       <li><strong>網頁</strong>：總表、廚房彙總（取貨日 × 品項 × 接單門市）、待處理、客人資料，每頁都能下載 Excel；依角色登入，門市沒有帳號</li>
       <li><strong>客人資料</strong>：電話正規化後當客人 ID；跟會員分開</li>
       <li><strong>歷史資料匯入</strong>：舊格式 Excel 轉成範本，建立回頭客名單</li>
-      <li><strong>驗證</strong>：377 個自動化測試；一行指令重播 9 步 demo；已部署在 Cloud Run（台灣）＋Neon，LINE 群組實測通過；一行指令重新部署</li>
+      <li><strong>部署</strong>：Cloud Run（台灣）＋Neon，LINE 群組實測通過；一行指令重播 9 步 demo，一行指令重新部署</li>
     </ul>
   </div>
+  <table class="small" style="margin-top:10px">
+    <tr><th style="width:14%">自動化測試</th><th>涵蓋什麼</th></tr>
+    <tr><td>功能面</td><td>六家門市的模擬檔逐份跑過，收了什麼、退了哪一列、回覆怎麼寫都對照預期；修改分類與截止點邊界（剛好第 N 天）；退回後重傳不重複產生待確認；廚房彙總的加總（含取消與待確認）；電話正規化；舊格式轉換與歷史匯入；門市綁定；LINE 回覆和模擬上傳頁逐字相同</td></tr>
+    <tr><td>非功能面</td><td>安全：簽章錯誤拒收、各角色只看得到該看的頁、未登入看不到任何訂單或客人資料、log 不出現姓名電話。可靠：LINE 重送只處理一次、原檔與修改紀錄在資料庫層禁止改寫、下載或處理失敗也回覆並保留原檔、回覆不超過 LINE 字數上限。部署：資料庫連線一定走 TLS、secret 不印出、先 migration 再上線。測試跑在真的 Postgres 上</td></tr>
+  </table>
   <div class="card accent" style="margin-top:14px">
     <p class="small" style="margin:0"><strong>先在 1–2 家門市試行。</strong>第一週要緊密跟進：流程裡有沒有預料外的情況，現場的人怎麼接受新做法。導入要花多少時間、門市適應的成本、跟現有系統整合的成本，都是這個 MVP 要一起評估的。</p>
   </div>
