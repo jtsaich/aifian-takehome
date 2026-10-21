@@ -1,4 +1,7 @@
-"""廚房彙總: the boxes to make per 取貨日 × 品項, and per 門市 within each day.
+"""廚房彙總: the boxes to make per 取貨日 × 品項, and per 接單門市 within each day.
+
+The per-store rows are the store that took the order, not where the boxes go:
+routing to stores stays with the kitchen's existing process.
 
 Counts what is on record. 取消 lines are left out, and so are 歷史資料. A change
 waiting for 總部 was not applied, so its order still holds the content from before
@@ -26,7 +29,7 @@ PENDING = "有待確認"
 WEEKDAYS = "一二三四五六日"
 SUMMARY_SHEET = "廚房彙總"
 PENDING_SHEET = "有待確認的訂單"
-PENDING_COLUMNS = ("取貨日", "門市", "單號")
+PENDING_COLUMNS = ("取貨日", "接單門市", "單號")
 
 
 @dataclass(frozen=True)
@@ -77,7 +80,7 @@ class KitchenSummary:
 
     @property
     def columns(self) -> tuple[str, ...]:
-        return ("取貨日", "星期", "門市", *(p.name for p in self.products), "合計")
+        return ("取貨日", "星期", "接單門市", *(p.name for p in self.products), "合計")
 
 
 def weekday(d: date) -> str:

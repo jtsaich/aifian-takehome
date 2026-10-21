@@ -42,7 +42,7 @@ TC01_REUSED = [
     _row("0302", "綠豆椪禮盒", 30, pickup_on=date(2026, 10, 30), phone="0988-000-111"),
 ]
 
-HEADER = ["取貨日", "星期", "門市", "龍鳳喜餅", "鳳梨酥禮盒", "綠豆椪禮盒", "合計"]
+HEADER = ["取貨日", "星期", "接單門市", "龍鳳喜餅", "鳳梨酥禮盒", "綠豆椪禮盒", "合計"]
 
 
 @pytest.fixture
@@ -141,7 +141,7 @@ def test_summary_adds_boxes_by_pickup_date_and_product_for_the_next_14_days(make
         ["2026/11/01", "日", "全部門市", "", "60", "", "60"],
         ["2026/11/01", "日", "彰化中華店", "", "60", "", "60"],
     ]
-    assert _tables(page)["pending"] == [["取貨日", "門市", "單號"], ["2026/10/30", "台中中正店", "0302"]]
+    assert _tables(page)["pending"] == [["取貨日", "接單門市", "單號"], ["2026/10/30", "台中中正店", "0302"]]
 
 
 def test_a_cancelled_line_back_in_production_counts_again(make_client, send, orders):

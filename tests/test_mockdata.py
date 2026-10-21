@@ -38,7 +38,13 @@ SYNONYMS = {"手機": "電話"}
 
 
 def _files(root: Path) -> dict[str, bytes]:
-    return {str(p.relative_to(root)): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()}
+    """Every file under root, minus files the OS leaves behind: Excel's ~$ lock files while a
+    workbook is open, and dotfiles such as Finder's .DS_Store."""
+    return {
+        str(p.relative_to(root)): p.read_bytes()
+        for p in sorted(root.rglob("*"))
+        if p.is_file() and not p.name.startswith(("~$", "."))
+    }
 
 
 def _as_date(value) -> date | None:

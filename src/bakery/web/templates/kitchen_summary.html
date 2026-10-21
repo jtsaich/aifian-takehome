@@ -16,7 +16,7 @@
 </form>
 
 <p><strong>{{ day(s.start) }}～{{ day(s.end) }}</strong>　<a href="/kitchen.xlsx?start={{ s.start.isoformat() }}&amp;end={{ s.end.isoformat() }}">下載 .xlsx</a></p>
-<p class="muted">取消的不算。有修改在等總部確認的單，先照修改前的盒數算，數字旁標「{{ pending_label }}」。</p>
+<p class="muted">取消的不算。有修改在等總部確認的單，先照修改前的盒數算，數字旁標「{{ pending_label }}」。各門市的列是接單門市；要送到哪家店，由廚房照現有流程決定，跨店取貨或宅配看訂單備註。</p>
 <label class="inline"><input type="checkbox" id="expand-all"> 全部展開各門市</label>
 <table class="summary">
   <thead>

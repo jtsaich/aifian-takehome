@@ -260,7 +260,7 @@ class Site:
         ws = _workbook(self._ok(resp, "下載廚房彙總")).worksheets[0]
         rows = ws.iter_rows(values_only=True)
         header = next(rows)
-        store, total = header.index("門市"), header.index("合計")
+        store, total = header.index("接單門市"), header.index("合計")
         return sum(row[total] or 0 for row in rows if row[store] == "全部門市")
 
 
