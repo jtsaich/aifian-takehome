@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>喜餅訂單：先把訂單管好，再往會員走｜設計說明</title>
+<style>
+  :root { --fg:#1d2329; --muted:#5d6770; --accent:#2471a3; --line:#d5dbe0; --soft:#f3f6f8; --warn:#b03a2e; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #e9edf0; color: var(--fg);
+    font-family: "PingFang TC", "Noto Sans TC", "Heiti TC", sans-serif; }
+  .deck { height: 100%; display: flex; align-items: center; justify-content: center; }
+  section { display: none; width: min(1120px, 96vw); height: min(680px, 92vh); background: #fff;
+    border-radius: 10px; box-shadow: 0 2px 16px rgba(0,0,0,.08); padding: 44px 56px; overflow: auto; position: relative; }
+  section.on { display: block; }
+  h1 { font-size: 34px; margin: 0 0 10px; line-height: 1.3; }
+  h2 { font-size: 26px; margin: 0 0 18px; }
+  h3 { font-size: 18px; margin: 18px 0 8px; color: var(--accent); }
+  p, li, td, th { font-size: 17px; line-height: 1.6; }
+  ul { margin: 6px 0; padding-left: 22px; }
+  li { margin: 4px 0; }
+  .muted { color: var(--muted); }
+  .small, .small td, .small th, .small li { font-size: 14.5px; }
+  .kicker { color: var(--accent); font-weight: bold; letter-spacing: .05em; margin-bottom: 6px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  .card { background: var(--soft); border-radius: 8px; padding: 14px 18px; }
+  .card.warn { border-left: 4px solid var(--warn); }
+  .card.accent { border-left: 4px solid var(--accent); }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border-bottom: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+  th { color: var(--muted); font-weight: normal; }
+  .big { font-size: 22px; font-weight: bold; }
+  img.chart { width: 100%; max-height: 520px; object-fit: contain; }
+  .num { position: absolute; right: 22px; bottom: 14px; color: var(--muted); font-size: 13px; }
+  .nav { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); font-size: 13px; color: var(--muted); }
+  .nav button { border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 4px 12px; cursor: pointer; font-size: 13px; }
+  @media print {
+    html, body { background: #fff; height: auto; }
+    .deck { display: block; }
+    section { display: block !important; width: 100%; height: auto; min-height: 100vh; box-shadow: none; border-radius: 0; page-break-after: always; overflow: visible; }
+    .nav { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="deck">
+
+<section>
+  <div class="kicker">題目 A｜中部老字號糕餅連鎖｜設計說明</div>
+  <h1>喜餅訂單：先把訂單管好，再往會員走</h1>
+  <p class="muted">6 家門市＋1 個中央廚房。門市照舊接電話、記 Excel、傳 LINE；中央廚房的官方帳號在群組裡自動檢查、彙整、回覆。這一步解決眼前的退款，也是會員系統的底。</p>
+  <div class="cols" style="margin-top:28px">
+    <div class="card"><div class="big">交付三項</div><ul><li>可執行的最小版本：repo＋README，已接上真的 LINE 群組實測</li><li>給老闆的一頁說明</li><li>這份設計說明</li></ul></div>
+    <div class="card"><div class="big">怎麼看這份</div><ul><li>← → 鍵或點按鈕換頁</li><li>列印成 PDF：瀏覽器列印即可，一頁一張</li></ul></div>
+  </div>
+  <p class="muted" style="margin-top:28px">Jack Tsai｜2026-10</p>
+</section>
+
+<section>
+  <h2>老闆要的，和現場看到的，是兩個題目</h2>
+  <div class="cols">
+    <div class="card accent"><h3>老闆說</h3><p class="big">「我們想要一個會員 App，跟大品牌一樣。」</p><p class="muted">目的、要看的指標、誰來推，都還沒問清楚。</p></div>
+    <div class="card warn"><h3>現場看到</h3><ul><li>喜餅約占營收四成</li><li>上一季 3 筆喜餅訂單日期或數量記錯：退款＋負評</li><li>中央廚房要等各店把 Excel 用 LINE 傳來，才知道下週做多少</li><li>POS 外包，只能每晚匯出 CSV，改功能一個月起跳</li></ul></div>
+  </div>
+  <h3>判斷</h3>
+  <p>會員是終點，我們做得到；但會員要有資料才有用，資料來源是喜餅訂單和 POS 消費。現在喜餅訂單散在六份 Excel，POS 記不到是誰買的。<strong>第一週先解現場的問題，同時替會員打底；會員排在第 4–6 週。</strong></p>
+  <div class="num">2</div>
+</section>
+
+<section>
+  <h2>核心問題</h2>
+  <p class="big">訂單從門市到廚房這一段，沒有人或系統在檢查，也沒有一份大家都信得過的總數。</p>
+  <ul>
+    <li>每家門市的 Excel 格式不同，改單只是改掉一格，廚房不知道哪張單在什麼時間被誰改過</li>
+    <li>錯誤要到客人取貨才被發現</li>
+    <li>總部有人在人工合併各店 Excel（假設），漏算、重複算，也花工時</li>
+  </ul>
+  <div class="card warn" style="margin-top:18px">
+    <h3 style="margin-top:0">有一部分不是軟體問題</h3>
+    <p>如果錯在電話裡就聽錯（客人說 15 號、店員寫成 16 號），表格擋不住。軟體能讓錯變少，人還是會出錯，所以流程（掛電話前覆誦、用 LINE 傳確認給客人）和系統要一起設計。上一季那 3 筆錯在哪一步，是第一週要追的第一件事。</p>
+  </div>
+  <div class="num">3</div>
+</section>
+
+<section>
+  <h2>關鍵假設（都還沒跟客戶確認）</h2>
+  <table class="small">
+    <tr><th>#</th><th>假設</th><th>如果不成立</th></tr>
+    <tr><td>A1</td><td>門市已經用 LINE 群組把 Excel 傳給廚房</td><td>群組設計重談</td></tr>
+    <tr><td>A2</td><td>3 筆事故錯在門市記錄或改單</td><td>檢查重點移到別的環節；錯在電話就先改流程</td></tr>
+    <tr><td>A3</td><td>門市能接受統一範本，不能接受新系統</td><td>能接受的話，可以考慮表單輸入</td></tr>
+    <tr><td>A4</td><td>廚房彙總依接單門市分列，送到哪家店照廚房現有流程</td><td>跨店取貨多，範本才加「取貨門市」欄</td></tr>
+    <tr><td>A5</td><td>現有群組裡沒有別的 bot（一個群組只能有一個）</td><td>每店另開「門市＋官方帳號」群組</td></tr>
+    <tr><td>A6</td><td>每月喜餅訂單數十到一百多筆</td><td>重看託管規格、審核人力、LINE 方案</td></tr>
+    <tr><td>A7</td><td>總部有人專門彙整各店 Excel 再交給廚房</td><td>主指標改看廚房拿到數量的時間點</td></tr>
+  </table>
+  <p class="muted small">這些問題已用 email 提出；沒有回覆也照假設往下做，答案會對到「如果答案是 X，我會改 Y」。</p>
+  <div class="num">4</div>
+</section>
+
+<section>
+  <h2>現況流程</h2>
+  <img class="chart" src="../workflow-now.svg" alt="現況泳道圖">
+  <div class="num">5</div>
+</section>
+
+<section>
+  <h2>設計原則：順著現場的習慣</h2>
+  <div class="cols">
+    <div>
+      <h3>門市只改兩件事</h3>
+      <ul>
+        <li>改用統一範本，每張單一定要有單號（沿用或印一本預先編號的訂購單）</li>
+        <li>照樣把 Excel 傳到原本的群組，只是群組裡多了中央廚房的官方帳號</li>
+      </ul>
+      <p class="muted">門市人員多半做了十幾二十年，從紙筆走到 Excel 已經花了很久。不叫她們學新系統、不開帳號、不填表單。</p>
+    </div>
+    <div>
+      <h3>系統這一側</h3>
+      <ul>
+        <li>處理流程不用 AI：範本一致，就用確定的規則解析、檢查、合併，每一筆都能追溯</li>
+        <li>每次上傳是一批訂單明細，不是快照：檔案裡少了一張單不代表取消，取消要在狀態欄寫明</li>
+        <li>每一份範本檔都一定有回覆；沒收到回覆，本身就是出事的訊號</li>
+        <li>群組只用 reply，不用 push（push 依群組人數計費）</li>
+      </ul>
+    </div>
+  </div>
+  <div class="num">6</div>
+</section>
+
+<section>
+  <h2>導入後流程</h2>
+  <img class="chart" src="../workflow-after.svg" alt="導入後泳道圖">
+  <div class="num">7</div>
+</section>
+
+<section>
+  <h2>MVP：已經做出來、跑得起來的</h2>
+  <div class="cols">
+    <ul class="small">
+      <li><strong>群組收檔與回覆</strong>：驗證 LINE 簽章、事件去重、收到就下載；只回應範本檔，回覆寫明收到幾張、第幾列有什麼錯</li>
+      <li><strong>逐列檢查</strong>：缺單號、日期讀不出、盒數不對、品項不在清單裡；民國年、<code>10/25</code>、欄位順序不同、多加的欄位、多個分頁都讀得懂</li>
+      <li><strong>修改自動分類</strong>：追加、減量、改取貨日、取消、資料更正、疑似單號重複使用；每一筆修改留紀錄</li>
+      <li><strong>修改截止點</strong>：取貨日前 7 天（可調）之後的改單轉「待確認」，總部確認或退回，結果附在門市下一次回覆</li>
+    </ul>
+    <ul class="small">
+      <li><strong>網頁</strong>：總表、廚房彙總（取貨日 × 品項 × 接單門市）、待處理、客人資料，每頁都能下載 Excel；依角色登入，門市沒有帳號</li>
+      <li><strong>客人資料</strong>：電話正規化後當客人 ID；跟會員分開</li>
+      <li><strong>歷史資料匯入</strong>：舊格式 Excel 轉成範本，建立回頭客名單</li>
+      <li><strong>驗證</strong>：377 個自動化測試；一行指令重播 9 步 demo；已在真的 LINE 群組實測；部署腳本為 Cloud Run＋Neon</li>
+    </ul>
+  </div>
+  <div class="num">8</div>
+</section>
+
+<section>
+  <h2>刻意不做，以及為什麼</h2>
+  <table class="small">
+    <tr><th>不做</th><th>原因</th></tr>
+    <tr><td>讓門市改用表單或 App 輸入</td><td>對資深店員是新的出錯來源；第一階段只換範本</td></tr>
+    <tr><td>第一週就做會員 App</td><td>目的、指標還沒問清楚；資料還散著；排在第 4–6 週，第 6 週再決定要不要 App</td></tr>
+    <tr><td>POS 對帳</td><td>現在的 CSV 分不出喜餅取貨和現場購買；第一週先向廠商提出另開品項</td></tr>
+    <tr><td>push 通知進群組</td><td>依群組人數計費，免費 200 則撐不久；改用 reply，結果附在下一次回覆</td></tr>
+    <tr><td>取貨、配送、跨店、宅配</td><td>照廚房現有流程；系統只回報接單門市</td></tr>
+    <tr><td>AI 解析</td><td>同樣的輸入要得到同樣的結果，每一筆都能追溯</td></tr>
+    <tr><td>用電話猜是哪一張單</td><td>猜錯正好造成要解決的那種錯；單號必填，靠編號訂購單補</td></tr>
+  </table>
+  <div class="num">9</div>
+</section>
+
+<section>
+  <h2>技術選型：自建，還是用現成工具</h2>
+  <p class="small">先排除的限制：不論用哪種工具，「群組收檔、驗證、回覆」都要一個能接 LINE webhook 的程式；bot 不能傳檔案，只能給連結。</p>
+  <table class="small">
+    <tr><th>選項</th><th>費用（查證時）</th><th>問題</th></tr>
+    <tr><td>Ragic</td><td>USD 5–19／人／月</td><td>群組收檔、修改分類、待確認還是要自己寫</td></tr>
+    <tr><td>Google Sheets＋Apps Script</td><td>免費</td><td>驗不了 LINE 簽章；試算表可直接改，稽核紀錄不可靠</td></tr>
+    <tr><td>Airtable</td><td>Team USD 20–24／人／月</td><td>免費版筆數和 automation 次數偏緊</td></tr>
+    <tr><td>WiXtar 烘焙 POS</td><td>未公開</td><td>功能最貼近（喜餅接單轉工廠），但等於換 POS，是大決策</td></tr>
+    <tr><td><strong>自建</strong>（Python＋Postgres）</td><td>Cloud Run、Neon 免費額度內</td><td>要有人維護</td></tr>
+  </table>
+  <p><strong>結論：MVP 自建。</strong>要解決的核心正是修改分類、截止點這些規則，放進試算表反而難測。降低維護風險：全部資料隨時能下載 Excel。客戶若本來就想換 POS，WiXtar 要認真比價。</p>
+  <div class="num">10</div>
+</section>
+
+<section>
+  <h2>錢要花在刀口上：怎麼證明有價值</h2>
+  <p class="muted">就算合約已簽、資源已投入，第一週還是要先拿出看得到的改善，並把它接到老闆的會員目標。</p>
+  <div class="cols">
+    <div class="card accent">
+      <h3 style="margin-top:0">主指標</h3>
+      <p class="big">總部同仁每週花在彙整各店 Excel、核對訂單的時間</p>
+      <p class="small">第一週訪談先量現在的時數，試用兩週後再量；同時問這份總表能不能直接交給廚房。省下來的人力可以拿去做什麼，也一起問。</p>
+    </div>
+    <div>
+      <h3 style="margin-top:0">一起看的</h3>
+      <ul class="small">
+        <li>出錯頻率：取貨前被攔下並改好的錯誤數；上一季 3 筆壓到 0，放在季末驗收</li>
+        <li>隱性的溝通成本：門市和總部、廚房之間來回確認、打電話的次數與時間，量現況和導入後的差</li>
+        <li>廚房拿到下週數量的時間點、門市按時傳檔的比例</li>
+      </ul>
+      <h3>停下來的訊號</h3>
+      <ul class="small">
+        <li>錯在電話裡就發生：先改接電話的流程</li>
+        <li>總部同仁和廚房用了試用版還要自己再整理：照他們的做法改，不擴店</li>
+        <li>試用兩週按時傳檔不到八成，或接單變慢：停下來重談</li>
+      </ul>
+    </div>
+  </div>
+  <div class="num">11</div>
+</section>
+
+<section>
+  <h2>第 1 週</h2>
+  <table>
+    <tr><th style="width:24%">做什麼</th><th>內容</th></tr>
+    <tr><td>訪談</td><td>總部負責彙整 Excel、再交給廚房的同仁；廚房；試用門市店長。量現在的工時和來回溝通的成本，逐筆追上一季那 3 筆</td></tr>
+    <tr><td>試用版</td><td>統一範本、編號訂購單、官方帳號進群組、總表與廚房彙總</td></tr>
+    <tr><td>一家門市試營運</td><td>新舊做法並行，每天對一次；試用版直接拿回給彙整的同仁和廚房用</td></tr>
+    <tr><td>POS 需求單</td><td>結帳時記下客人電話或 LINE 會員條碼；每晚 CSV 改成逐筆交易（收據號、時間）；另開「喜餅訂單取貨」品項並填單號；CSV 自動放到固定資料夾。請廠商分清楚調設定或改功能，改功能的報價排期。廠商一個月起跳，第一週提才趕得上第 4–6 週</td></tr>
+  </table>
+  <div class="num">12</div>
+</section>
+
+<section>
+  <h2>第 2–6 週</h2>
+  <table>
+    <tr><th style="width:12%">週</th><th>做什麼</th><th style="width:30%">要學到什麼</th></tr>
+    <tr><td>2–3</td><td>依訪談和試用調整；擴到六家門市；匯入歷史資料成客人資料。持續跟店員、協調廚房的同仁、行銷團隊談</td><td>彙整工時有沒有降；待確認一週幾筆，總部處理得來嗎</td></tr>
+    <tr><td>4–5</td><td>會員同意加入：取貨時掃 QR 加官方帳號、領 LINE 會員卡。廠商改好的話，讀 POS 逐筆 CSV，把喜餅訂單和門市消費掛到同一位會員</td><td>取貨時的加入率；現場消費有多少帶得到會員識別</td></tr>
+    <tr><td>6</td><td>跟老闆、行銷一起看會員數、回購、門市推廣的負擔，決定 LINE 會員卡夠不夠，還是要開發 App</td><td>App 要解決的是會員卡做不到的哪件事</td></tr>
+  </table>
+  <p class="muted small">這張表依前幾週學到的東西調整。例如第 2 週待確認多到總部處理不來，先回頭調截止點，不往下擴店。</p>
+  <div class="num">13</div>
+</section>
+
+<section>
+  <h2>會員：要接洽的是行銷部門</h2>
+  <div class="cols">
+    <div>
+      <h3 style="margin-top:0">先問行銷</h3>
+      <ul class="small">
+        <li>老闆說的會員系統，行銷理解要解決什麼：讓更多人進門市、在 LINE 下單，還是在自己的網站下單？</li>
+        <li>現在投哪些廣告、看哪些數字？內部有沒有會員系統或客人名單？</li>
+        <li>有了會員，最想知道什麼：哪個廣告帶來會員、會員有沒有變成回頭客、什麼時間推播最有用</li>
+      </ul>
+      <h3>消費模式與推播時機</h3>
+      <p class="small">喜餅客人之後的彌月、中秋與春節禮盒，是假設中的回購時點。郭元益建議婚期前 2–3 個月訂餅；喜餅到彌月隔多久沒有品牌寫，用客戶自己的訂單驗證。舊訂單若留有電話，不用等 POS 修改就能先算。</p>
+    </div>
+    <div>
+      <h3 style="margin-top:0">行銷要追的漏斗</h3>
+      <table class="small">
+        <tr><th>階段</th><th>需要的資料</th></tr>
+        <tr><td>廣告／管道 → 會員</td><td>每店、每檔活動一組加好友 QR</td></tr>
+        <tr><td>會員 → 首購 → 回購</td><td>POS 逐筆記下會員</td></tr>
+        <tr><td>回購 → 忠誠（留存、RFM）</td><td>同上</td></tr>
+        <tr><td>廣告 → 門市營收</td><td>逐筆交易＋會員手機回傳 Meta、Google</td></tr>
+        <tr><td>喜餅客 → 彌月、節慶</td><td>同一支電話的前後訂單</td></tr>
+      </table>
+      <p class="muted small">三家廣告平台比對門市消費都用雜湊後的手機；現在的 CSV 是每日彙總，送不上去。</p>
+    </div>
+  </div>
+  <div class="num">14</div>
+</section>
+
+<section>
+  <h2>會員的預設做法（待行銷確認）</h2>
+  <table class="small">
+    <tr><th style="width:18%">項目</th><th>預設</th><th style="width:34%">依據</th></tr>
+    <tr><td>門市怎麼認會員</td><td>POS 改好前：客人掃 QR 開 LINE 會員卡，喜餅訂單點數由總部後台發。POS 改好後：報手機或出示條碼，每晚依 CSV 發點，隔天入帳</td><td>12 個品牌沒有一家讓客人掃門市 QR 累點；LINE 原生集點卡不能依金額給點、不接 POS</td></tr>
+    <tr><td>點數</td><td>每 100 元 1 點、1 點 1 元；每筆折抵上限 10%；隔年 12/31 到期。報手機可累點，折抵要出示會員卡</td><td>常見回饋率 0.3–2%；全聯不接受報電話折抵</td></tr>
+    <tr><td>等級、生日禮</td><td>第一階段不分等級；生日月折價券</td><td>8/12 有生日禮；等級要年度消費資料</td></tr>
+    <tr><td>後台</td><td>門市只能發點、折抵；手動調點限 1–2 位行銷人員，寫原因、留紀錄</td><td>防冒用與內部稽核</td></tr>
+    <tr><td>管道與成本</td><td>LINE 先行；簡訊、Email 之後。3,000 會員每月 4 則：LINE 約 2,600 元、簡訊 8,400–9,720 元、Email 約 1,024 元</td><td>平台官方價格</td></tr>
+    <tr><td>個資與點數</td><td>舊訂單電話不發行銷訊息，會員由客人自己加入；每則行銷訊息附拒收方式。免費點數可設效期，不做儲值</td><td>個資法 §7、§20；禮券規定（請客戶律師確認）</td></tr>
+  </table>
+  <div class="num">15</div>
+</section>
+
+<section>
+  <h2>如果老闆直接要一支會員 App</h2>
+  <div class="cols">
+    <div>
+      <h3 style="margin-top:0">做得到，但成本要攤開</h3>
+      <ul class="small">
+        <li>從產品發想、設計、開發、驗證、上線、部署到維護，都要算進開發成本</li>
+        <li>老闆不一定能講到這麼細；我們從大方向談，再跟品牌與執行的人把功能定下來</li>
+        <li>用 AI 輔助開發，2–6 週可以做出能實際使用、給內部試用的小型 prototype</li>
+      </ul>
+    </div>
+    <div>
+      <h3 style="margin-top:0">但 prototype 的價值在 feedback</h3>
+      <ul class="small">
+        <li>有了 App 之後，行銷要看哪些 metrics、KPI，才知道怎麼用它</li>
+        <li>會員要有資料才有用：訂單和客人資料這一步不管做不做 App 都要先做</li>
+        <li>最後一定要有客戶端實際執行的人，跟我們一起推</li>
+      </ul>
+    </div>
+  </div>
+  <p class="muted small">第 6 週要 App 報價的條件：行銷說得出 LINE 做不到、又直接帶營收的功能；LINE 訊息費用變高；或老闆主要想要品牌自有通路。POS 還記不到會員，或取貨時加入的人很少，就先不做。</p>
+  <div class="num">16</div>
+</section>
+
+<section>
+  <h2>第一次開會要問的問題</h2>
+  <div class="cols">
+    <div>
+      <h3 style="margin-top:0">老闆、總部</h3>
+      <ul class="small">
+        <li>上一季 3 筆各錯在哪一步？誰發現、什麼時候？</li>
+        <li>有沒有中途被抓到、沒釀成事故的錯？</li>
+        <li>總部誰在彙整 Excel，每週花多少時間？</li>
+        <li>取貨前幾天之後改單要經總部？廚房實際提前幾天備料？</li>
+        <li>群組長什麼樣子、裡面有沒有別的 bot？</li>
+      </ul>
+      <h3>個資</h3>
+      <ul class="small"><li>舊訂單電話拿來建會員要客人另外同意；公司有法務或顧問可以確認嗎？</li></ul>
+    </div>
+    <div>
+      <h3 style="margin-top:0">行銷</h3>
+      <ul class="small"><li>會員要解決什麼？現在看哪些數字？有會員系統或名單嗎？</li></ul>
+      <h3>POS 廠商</h3>
+      <ul class="small">
+        <li>喜餅取貨有沒有在 POS 結帳？訂金和尾款怎麼記？</li>
+        <li>能不能記下會員識別、改成逐筆交易、另開喜餅取貨品項？調設定還是改功能？報價和排期？</li>
+        <li>CSV 欄位定義和範例檔</li>
+      </ul>
+    </div>
+  </div>
+  <div class="num">17</div>
+</section>
+
+<section>
+  <h2>如果答案是 X，我會改 Y</h2>
+  <table class="small">
+    <tr><th>問題</th><th>如果答案是</th><th>我會改</th></tr>
+    <tr><td>3 筆錯在哪</td><td>電話接單時就聽錯</td><td>先改流程：接單後用 LINE 傳確認給客人</td></tr>
+    <tr><td>3 筆錯在哪</td><td>廚房漏看改單</td><td>廚房彙總加「上次以後改過的單」</td></tr>
+    <tr><td>群組裡已有別的 bot</td><td>有，拿不掉</td><td>每店另開「門市＋官方帳號」群組</td></tr>
+    <tr><td>能公開在群組指錯嗎</td><td>不能</td><td>群組只回「已收到，有 N 項待確認」，細節放網頁</td></tr>
+    <tr><td>截止點</td><td>廚房固定週四鎖下週</td><td>改成每週固定時間鎖定</td></tr>
+    <tr><td>會員目的</td><td>增加回頭客</td><td>LINE 好友加會員卡，不做 App</td></tr>
+    <tr><td>會員目的</td><td>自有通路、品牌形象</td><td>才評估 App，先算清楚門市推廣成本</td></tr>
+    <tr><td>客戶打算換 POS</td><td>是</td><td>認真評估 WiXtar 這類烘焙 POS</td></tr>
+  </table>
+  <div class="num">18</div>
+</section>
+
+</div>
+<div class="nav"><button id="prev">←</button> <span id="pos"></span> <button id="next">→</button></div>
+<script>
+  const slides = [...document.querySelectorAll("section")];
+  let i = Math.max(0, Math.min(slides.length - 1, (parseInt(location.hash.slice(1), 10) || 1) - 1));
+  const show = () => {
+    slides.forEach((s, k) => s.classList.toggle("on", k === i));
+    document.getElementById("pos").textContent = `${i + 1} / ${slides.length}`;
+    history.replaceState(null, "", `#${i + 1}`);
+  };
+  const go = d => { i = Math.max(0, Math.min(slides.length - 1, i + d)); show(); };
+  document.getElementById("prev").onclick = () => go(-1);
+  document.getElementById("next").onclick = () => go(1);
+  addEventListener("keydown", e => {
+    if (["ArrowRight", "PageDown", " "].includes(e.key)) { e.preventDefault(); go(1); }
+    if (["ArrowLeft", "PageUp"].includes(e.key)) { e.preventDefault(); go(-1); }
+  });
+  show();
+</script>
+</body>
+</html>
