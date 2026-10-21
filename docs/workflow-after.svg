@@ -1,91 +1,92 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" font-family="PingFang TC, Noto Sans TC, sans-serif">
-<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--fg,#222)"/></marker></defs>
-<text x="10" y="22" font-size="15" font-weight="bold" style="fill:var(--fg,#222)">導入後：同一條流程，加上自動檢查與彙整</text>
-<rect x="4" y="36" width="1192" height="84" style="fill:none;stroke:var(--border,#bbb)"/>
-<line x1="110" y1="36" x2="110" y2="120" style="stroke:var(--border,#bbb)"/>
-<text x="57.0" y="83.0" font-size="13" font-weight="bold" text-anchor="middle" style="fill:var(--fg,#222)">客人</text>
-<rect x="4" y="120" width="1192" height="84" style="fill:none;stroke:var(--border,#bbb)"/>
-<line x1="110" y1="120" x2="110" y2="204" style="stroke:var(--border,#bbb)"/>
-<text x="57.0" y="167.0" font-size="13" font-weight="bold" text-anchor="middle" style="fill:var(--fg,#222)">門市</text>
-<rect x="4" y="204" width="1192" height="84" style="fill:none;stroke:var(--border,#bbb)"/>
-<line x1="110" y1="204" x2="110" y2="288" style="stroke:var(--border,#bbb)"/>
-<text x="57.0" y="243.0" font-size="13" font-weight="bold" text-anchor="middle" style="fill:var(--fg,#222)">LINE 群組</text>
-<text x="57.0" y="259.0" font-size="13" font-weight="bold" text-anchor="middle" style="fill:var(--fg,#222)">＋官方帳號</text>
-<rect x="4" y="288" width="1192" height="84" style="fill:none;stroke:var(--border,#bbb)"/>
-<line x1="110" y1="288" x2="110" y2="372" style="stroke:var(--border,#bbb)"/>
-<text x="57.0" y="335.0" font-size="13" font-weight="bold" text-anchor="middle" style="fill:var(--fg,#222)">系統</text>
-<rect x="4" y="372" width="1192" height="84" style="fill:none;stroke:var(--border,#bbb)"/>
-<line x1="110" y1="372" x2="110" y2="456" style="stroke:var(--border,#bbb)"/>
-<text x="57.0" y="419.0" font-size="13" font-weight="bold" text-anchor="middle" style="fill:var(--fg,#222)">總部負責人</text>
-<rect x="4" y="456" width="1192" height="84" style="fill:none;stroke:var(--border,#bbb)"/>
-<line x1="110" y1="456" x2="110" y2="540" style="stroke:var(--border,#bbb)"/>
-<text x="57.0" y="503.0" font-size="13" font-weight="bold" text-anchor="middle" style="fill:var(--fg,#222)">中央廚房</text>
-<rect x="125.0" y="55" width="130" height="46" rx="6" style="fill:var(--surface,#f6f6f6);stroke:var(--border,#bbb);stroke-width:1.2"/>
-<text x="190" y="74.5" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">打電話或傳 LINE</text>
-<text x="190" y="89.5" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">訂喜餅</text>
-<rect x="125.0" y="139" width="130" height="46" rx="6" style="fill:var(--surface,#f6f6f6);stroke:var(--accent,#2471a3);stroke-width:2"/>
-<text x="190" y="158.5" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">記進統一範本</text>
-<text x="190" y="173.5" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">單號抄自訂購單</text>
-<rect x="280.0" y="55" width="130" height="46" rx="6" style="fill:var(--surface,#f6f6f6);stroke:var(--border,#bbb);stroke-width:1.2"/>
-<text x="345" y="82.0" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">改日期或盒數</text>
-<rect x="280.0" y="139" width="130" height="46" rx="6" style="fill:var(--surface,#f6f6f6);stroke:var(--accent,#2471a3);stroke-width:2"/>
-<text x="345" y="158.5" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">改範本那一列</text>
-<text x="345" y="173.5" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">取消標在狀態欄</text>
-<rect x="435.0" y="139" width="130" height="46" rx="6" style="fill:var(--surface,#f6f6f6);stroke:var(--border,#bbb);stroke-width:1.2"/>
-<text x="500" y="158.5" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">把 Excel 傳到</text>
-<text x="500" y="173.5" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">同一個群組</text>
-<rect x="435.0" y="223" width="130" height="46" rx="6" style="fill:var(--surface,#f6f6f6);stroke:var(--border,#bbb);stroke-width:1.2"/>
-<text x="500" y="250.0" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">Excel 進群組</text>
-<rect x="435.0" y="307" width="130" height="46" rx="6" style="fill:var(--surface,#f6f6f6);stroke:var(--accent,#2471a3);stroke-width:2"/>
-<text x="500" y="326.5" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">解析、逐列檢查</text>
-<text x="500" y="341.5" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">比對修改、分類</text>
-<rect x="590.0" y="223" width="130" height="46" rx="6" style="fill:var(--surface,#f6f6f6);stroke:var(--accent,#2471a3);stroke-width:2"/>
-<text x="655" y="242.5" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">官方帳號回覆</text>
-<text x="655" y="257.5" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">幾張單、哪列有錯</text>
-<rect x="590.0" y="391" width="130" height="46" rx="6" style="fill:var(--surface,#f6f6f6);stroke:var(--accent,#2471a3);stroke-width:2"/>
-<text x="655" y="410.5" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">過截止點的改單</text>
-<text x="655" y="425.5" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">確認或退回</text>
-<rect x="745.0" y="307" width="130" height="46" rx="6" style="fill:var(--surface,#f6f6f6);stroke:var(--accent,#2471a3);stroke-width:2"/>
-<text x="810" y="326.5" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">總表、廚房彙總</text>
-<text x="810" y="341.5" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">修改紀錄、客人資料</text>
-<rect x="745.0" y="475" width="130" height="46" rx="6" style="fill:var(--surface,#f6f6f6);stroke:var(--accent,#2471a3);stroke-width:2"/>
-<text x="810" y="494.5" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">看廚房彙總</text>
-<text x="810" y="509.5" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">取貨日×品項×接單門市</text>
-<rect x="900.0" y="475" width="130" height="46" rx="6" style="fill:var(--surface,#f6f6f6);stroke:var(--border,#bbb);stroke-width:1.2"/>
-<text x="965" y="494.5" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">生產</text>
-<text x="965" y="509.5" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">依現有流程配送</text>
-<rect x="900.0" y="139" width="130" height="46" rx="6" style="fill:var(--surface,#f6f6f6);stroke:var(--border,#bbb);stroke-width:1.2"/>
-<text x="965" y="158.5" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">收到喜餅</text>
-<text x="965" y="173.5" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">交給客人</text>
-<rect x="900.0" y="55" width="130" height="46" rx="6" style="fill:var(--surface,#f6f6f6);stroke:var(--border,#bbb);stroke-width:1.2"/>
-<text x="965" y="82.0" font-size="12" text-anchor="middle" style="fill:var(--fg,#222)">到門市取貨</text>
-<rect x="1055.0" y="307" width="130" height="46" rx="6" style="fill:var(--surface,#f6f6f6);stroke:var(--muted,#666);stroke-width:1.2;stroke-dasharray:5 3"/>
-<text x="1120" y="326.5" font-size="12" text-anchor="middle" style="fill:var(--muted,#666)">失敗通知</text>
-<text x="1120" y="341.5" font-size="12" text-anchor="middle" style="fill:var(--muted,#666)">每日對帳摘要</text>
-<rect x="1055.0" y="391" width="130" height="46" rx="6" style="fill:var(--surface,#f6f6f6);stroke:var(--muted,#666);stroke-width:1.2;stroke-dasharray:5 3"/>
-<text x="1120" y="410.5" font-size="12" text-anchor="middle" style="fill:var(--muted,#666)">對照群組</text>
-<text x="1120" y="425.5" font-size="12" text-anchor="middle" style="fill:var(--muted,#666)">漏收的轉傳補登</text>
-<path d="M190,101 L190,139" style="fill:none;stroke:var(--fg,#222);stroke-width:1.3" marker-end="url(#a)"/>
-<path d="M345,101 L345,139" style="fill:none;stroke:var(--fg,#222);stroke-width:1.3" marker-end="url(#a)"/>
-<path d="M255.0,162.0 L280.0,162.0" style="fill:none;stroke:var(--fg,#222);stroke-width:1.3" marker-end="url(#a)"/>
-<path d="M410.0,162.0 L435.0,162.0" style="fill:none;stroke:var(--fg,#222);stroke-width:1.3" marker-end="url(#a)"/>
-<path d="M500,185 L500,223" style="fill:none;stroke:var(--fg,#222);stroke-width:1.3" marker-end="url(#a)"/>
-<path d="M500,269 L500,307" style="fill:none;stroke:var(--fg,#222);stroke-width:1.3" marker-end="url(#a)"/>
-<path d="M565.0,322.0 L625,322.0 L625,269" style="fill:none;stroke:var(--fg,#222);stroke-width:1.3" marker-end="url(#a)"/>
-<path d="M565.0,338.0 L625,338.0 L625,391" style="fill:none;stroke:var(--fg,#222);stroke-width:1.3" marker-end="url(#a)"/>
-<path d="M685,391 L685,269" style="fill:none;stroke:var(--fg,#222);stroke-width:1.3" marker-end="url(#a)"/>
-<text x="689" y="300" font-size="11" style="fill:var(--muted,#666)">結果附在下次回覆</text>
-<path d="M615,223 L615,128 L385,128 L385,139" style="fill:none;stroke:var(--fg,#222);stroke-width:1.3;stroke-dasharray:5 3" marker-end="url(#a)"/>
-<text x="619" y="140" font-size="11" style="fill:var(--muted,#666)">有錯就改好再傳</text>
-<path d="M565.0,330.0 L745.0,330.0" style="fill:none;stroke:var(--fg,#222);stroke-width:1.3" marker-end="url(#a)"/>
-<path d="M810,353 L810,475" style="fill:none;stroke:var(--fg,#222);stroke-width:1.3" marker-end="url(#a)"/>
-<path d="M875.0,498.0 L900.0,498.0" style="fill:none;stroke:var(--fg,#222);stroke-width:1.3" marker-end="url(#a)"/>
-<path d="M965,475 L965,185" style="fill:none;stroke:var(--fg,#222);stroke-width:1.3" marker-end="url(#a)"/>
-<path d="M965,139 L965,101" style="fill:none;stroke:var(--fg,#222);stroke-width:1.3" marker-end="url(#a)"/>
-<path d="M875.0,330.0 L1055.0,330.0" style="fill:none;stroke:var(--fg,#222);stroke-width:1.3;stroke-dasharray:5 3" marker-end="url(#a)"/>
-<path d="M1120,353 L1120,391" style="fill:none;stroke:var(--fg,#222);stroke-width:1.3;stroke-dasharray:5 3" marker-end="url(#a)"/>
-<path d="M1160,391 L1160,212 L530,212 L530,223" style="fill:none;stroke:var(--fg,#222);stroke-width:1.3;stroke-dasharray:5 3" marker-end="url(#a)"/>
-<text x="790" y="224" font-size="11" style="fill:var(--muted,#666)">轉傳</text>
-<text x="10" y="564" font-size="12" style="fill:var(--muted,#666)">藍框：導入後新增或改變的步驟　灰框：不變　虛線框：提議，尚未實作</text>
-<text x="10" y="582" font-size="12" style="fill:var(--muted,#666)">門市照舊接電話、記 Excel、傳到群組；生產與配送照廚房現有流程</text>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#222"/></marker></defs>
+<text x="10" y="22" font-size="15" font-weight="bold" fill="#222">導入後：同一條流程，加上自動檢查與彙整</text>
+<rect x="4" y="36" width="1192" height="84" fill="none" stroke="#bbb"/>
+<line x1="110" y1="36" x2="110" y2="120" stroke="#bbb"/>
+<text x="57.0" y="83.0" font-size="13" font-weight="bold" text-anchor="middle" fill="#222">客人</text>
+<rect x="4" y="120" width="1192" height="84" fill="none" stroke="#bbb"/>
+<line x1="110" y1="120" x2="110" y2="204" stroke="#bbb"/>
+<text x="57.0" y="167.0" font-size="13" font-weight="bold" text-anchor="middle" fill="#222">門市</text>
+<rect x="4" y="204" width="1192" height="84" fill="none" stroke="#bbb"/>
+<line x1="110" y1="204" x2="110" y2="288" stroke="#bbb"/>
+<text x="57.0" y="243.0" font-size="13" font-weight="bold" text-anchor="middle" fill="#222">LINE 群組</text>
+<text x="57.0" y="259.0" font-size="13" font-weight="bold" text-anchor="middle" fill="#222">＋官方帳號</text>
+<rect x="4" y="288" width="1192" height="84" fill="none" stroke="#bbb"/>
+<line x1="110" y1="288" x2="110" y2="372" stroke="#bbb"/>
+<text x="57.0" y="335.0" font-size="13" font-weight="bold" text-anchor="middle" fill="#222">系統</text>
+<rect x="4" y="372" width="1192" height="84" fill="none" stroke="#bbb"/>
+<line x1="110" y1="372" x2="110" y2="456" stroke="#bbb"/>
+<text x="57.0" y="419.0" font-size="13" font-weight="bold" text-anchor="middle" fill="#222">總部負責人</text>
+<rect x="4" y="456" width="1192" height="84" fill="none" stroke="#bbb"/>
+<line x1="110" y1="456" x2="110" y2="540" stroke="#bbb"/>
+<text x="57.0" y="503.0" font-size="13" font-weight="bold" text-anchor="middle" fill="#222">中央廚房</text>
+<rect x="125.0" y="55" width="130" height="46" rx="6" fill="#f6f6f6" stroke="#bbb" stroke-width="1.2"/>
+<text x="190" y="74.5" font-size="12" text-anchor="middle" fill="#222">打電話或傳 LINE</text>
+<text x="190" y="89.5" font-size="12" text-anchor="middle" fill="#222">訂喜餅</text>
+<rect x="125.0" y="139" width="130" height="46" rx="6" fill="#f6f6f6" stroke="#2471a3" stroke-width="2"/>
+<text x="190" y="158.5" font-size="12" text-anchor="middle" fill="#222">記進統一範本</text>
+<text x="190" y="173.5" font-size="12" text-anchor="middle" fill="#222">單號抄自訂購單</text>
+<rect x="280.0" y="55" width="130" height="46" rx="6" fill="#f6f6f6" stroke="#bbb" stroke-width="1.2"/>
+<text x="345" y="82.0" font-size="12" text-anchor="middle" fill="#222">改日期或盒數</text>
+<rect x="280.0" y="139" width="130" height="46" rx="6" fill="#f6f6f6" stroke="#2471a3" stroke-width="2"/>
+<text x="345" y="158.5" font-size="12" text-anchor="middle" fill="#222">改範本那一列</text>
+<text x="345" y="173.5" font-size="12" text-anchor="middle" fill="#222">取消標在狀態欄</text>
+<rect x="435.0" y="139" width="130" height="46" rx="6" fill="#f6f6f6" stroke="#bbb" stroke-width="1.2"/>
+<text x="500" y="158.5" font-size="12" text-anchor="middle" fill="#222">把 Excel 傳到</text>
+<text x="500" y="173.5" font-size="12" text-anchor="middle" fill="#222">同一個群組</text>
+<rect x="435.0" y="223" width="130" height="46" rx="6" fill="#f6f6f6" stroke="#bbb" stroke-width="1.2"/>
+<text x="500" y="250.0" font-size="12" text-anchor="middle" fill="#222">Excel 進群組</text>
+<rect x="435.0" y="307" width="130" height="46" rx="6" fill="#f6f6f6" stroke="#2471a3" stroke-width="2"/>
+<text x="500" y="326.5" font-size="12" text-anchor="middle" fill="#222">解析、逐列檢查</text>
+<text x="500" y="341.5" font-size="12" text-anchor="middle" fill="#222">比對修改、分類</text>
+<rect x="590.0" y="223" width="130" height="46" rx="6" fill="#f6f6f6" stroke="#2471a3" stroke-width="2"/>
+<text x="655" y="242.5" font-size="12" text-anchor="middle" fill="#222">官方帳號回覆</text>
+<text x="655" y="257.5" font-size="12" text-anchor="middle" fill="#222">幾張單、哪列有錯</text>
+<rect x="590.0" y="391" width="130" height="46" rx="6" fill="#f6f6f6" stroke="#2471a3" stroke-width="2"/>
+<text x="655" y="410.5" font-size="12" text-anchor="middle" fill="#222">過截止點的改單</text>
+<text x="655" y="425.5" font-size="12" text-anchor="middle" fill="#222">確認或退回</text>
+<rect x="745.0" y="307" width="130" height="46" rx="6" fill="#f6f6f6" stroke="#2471a3" stroke-width="2"/>
+<text x="810" y="326.5" font-size="12" text-anchor="middle" fill="#222">總表、廚房彙總</text>
+<text x="810" y="341.5" font-size="12" text-anchor="middle" fill="#222">修改紀錄、客人資料</text>
+<rect x="745.0" y="475" width="130" height="46" rx="6" fill="#f6f6f6" stroke="#2471a3" stroke-width="2"/>
+<text x="810" y="494.5" font-size="12" text-anchor="middle" fill="#222">看廚房彙總</text>
+<text x="810" y="509.5" font-size="12" text-anchor="middle" fill="#222">取貨日×品項×接單門市</text>
+<rect x="900.0" y="475" width="130" height="46" rx="6" fill="#f6f6f6" stroke="#bbb" stroke-width="1.2"/>
+<text x="965" y="494.5" font-size="12" text-anchor="middle" fill="#222">生產</text>
+<text x="965" y="509.5" font-size="12" text-anchor="middle" fill="#222">依現有流程配送</text>
+<rect x="900.0" y="139" width="130" height="46" rx="6" fill="#f6f6f6" stroke="#bbb" stroke-width="1.2"/>
+<text x="965" y="158.5" font-size="12" text-anchor="middle" fill="#222">收到喜餅</text>
+<text x="965" y="173.5" font-size="12" text-anchor="middle" fill="#222">交給客人</text>
+<rect x="900.0" y="55" width="130" height="46" rx="6" fill="#f6f6f6" stroke="#bbb" stroke-width="1.2"/>
+<text x="965" y="82.0" font-size="12" text-anchor="middle" fill="#222">到門市取貨</text>
+<rect x="1055.0" y="307" width="130" height="46" rx="6" fill="#f6f6f6" stroke="#666" stroke-width="1.2" stroke-dasharray="5 3"/>
+<text x="1120" y="326.5" font-size="12" text-anchor="middle" fill="#666">失敗通知</text>
+<text x="1120" y="341.5" font-size="12" text-anchor="middle" fill="#666">每日對帳摘要</text>
+<rect x="1055.0" y="391" width="130" height="46" rx="6" fill="#f6f6f6" stroke="#666" stroke-width="1.2" stroke-dasharray="5 3"/>
+<text x="1120" y="410.5" font-size="12" text-anchor="middle" fill="#666">對照群組</text>
+<text x="1120" y="425.5" font-size="12" text-anchor="middle" fill="#666">漏收的轉傳補登</text>
+<path d="M190,101 L190,139" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#a)"/>
+<path d="M345,101 L345,139" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#a)"/>
+<path d="M255.0,162.0 L280.0,162.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#a)"/>
+<path d="M410.0,162.0 L435.0,162.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#a)"/>
+<path d="M500,185 L500,223" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#a)"/>
+<path d="M500,269 L500,307" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#a)"/>
+<path d="M565.0,322.0 L625,322.0 L625,269" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#a)"/>
+<path d="M565.0,338.0 L625,338.0 L625,391" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#a)"/>
+<path d="M685,391 L685,269" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#a)"/>
+<text x="689" y="300" font-size="11" fill="#666">結果附在下次回覆</text>
+<path d="M615,223 L615,128 L385,128 L385,139" fill="none" stroke="#222" stroke-width="1.3" stroke-dasharray="5 3" marker-end="url(#a)"/>
+<text x="619" y="140" font-size="11" fill="#666">有錯就改好再傳</text>
+<path d="M565.0,330.0 L745.0,330.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#a)"/>
+<path d="M810,353 L810,475" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#a)"/>
+<path d="M875.0,498.0 L900.0,498.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#a)"/>
+<path d="M965,475 L965,185" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#a)"/>
+<path d="M965,139 L965,101" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#a)"/>
+<path d="M875.0,330.0 L1055.0,330.0" fill="none" stroke="#222" stroke-width="1.3" stroke-dasharray="5 3" marker-end="url(#a)"/>
+<path d="M1120,353 L1120,391" fill="none" stroke="#222" stroke-width="1.3" stroke-dasharray="5 3" marker-end="url(#a)"/>
+<path d="M1160,391 L1160,212 L530,212 L530,223" fill="none" stroke="#222" stroke-width="1.3" stroke-dasharray="5 3" marker-end="url(#a)"/>
+<text x="790" y="224" font-size="11" fill="#666">轉傳</text>
+<text x="10" y="564" font-size="12" fill="#666">藍框：導入後新增或改變的步驟　灰框：不變　虛線框：提議，尚未實作</text>
+<text x="10" y="582" font-size="12" fill="#666">門市照舊接電話、記 Excel、傳到群組；生產與配送照廚房現有流程</text>
 </svg>
