@@ -33,7 +33,7 @@ code { font-size: 9pt; }
 @page { size: A4; margin: 18mm 16mm; }
 CSS
 
-pandoc "$src" --standalone --embed-resources --css "$css" \
+pandoc "$src" --standalone --embed-resources --resource-path "$(dirname "$src")" --css "$css" \
   -o "$tmp/design.html"
 "$chrome" --headless --disable-gpu --no-pdf-header-footer \
   --print-to-pdf="$out" "file://$tmp/design.html" 2>/dev/null
