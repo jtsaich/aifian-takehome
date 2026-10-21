@@ -32,7 +32,11 @@ services:
     environment:
       DATABASE_URL: postgresql://bakery:bakery@db:5432/bakery
       # Full links in replies (廚房彙總：http://localhost:8000/kitchen), as LINE needs.
-      PUBLIC_BASE_URL: http://localhost:${APP_PORT:-8000}
+      # When testing a real LINE group locally, set it to the tunnel URL in .env.
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:${APP_PORT:-8000}}
+      # Messaging API channel keys, read from .env (gitignored). Unset: webhook answers 503.
+      LINE_CHANNEL_SECRET: ${LINE_CHANNEL_SECRET:-}
+      LINE_CHANNEL_ACCESS_TOKEN: ${LINE_CHANNEL_ACCESS_TOKEN:-}
     ports:
       - "${APP_PORT:-8000}:8080"
     depends_on:

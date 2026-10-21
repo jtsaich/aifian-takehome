@@ -234,7 +234,19 @@ service 用 `--cpu-throttling`（request-based 計費）：**HTTP 回應送出�
 4. LINE Official Account Manager → 設定 → 回應設定：關掉**自動回應訊息**和**加入好友的歡迎訊息**（不然 OA 會自己插話）；帳號設定裡打開**允許加入群組**。
 5. 把 OA 邀進群組（一個群組只能有一個 bot），在群組裡傳一份 `mock_data/day1/` 的檔案，1 分鐘內應收到跟模擬群組上傳頁一樣的回覆；第一次傳檔的帳號回覆第一行是「已記錄您為 ○○店（待總部確認）」，到 `/bindings` 確認。
 
-本機試 webhook：設好上面兩個環境變數，用 `bakery.line.sign(secret, body)` 算 `X-Line-Signature` 送假事件即可；測試（`tests/test_line_webhook.py`）就是這樣做，LINE API 用 httpx 的 `MockTransport` 替代。
+本機接真的 LINE 群組（還沒部署時）：
+
+1. 在 repo 根目錄建 `.env`（已在 `.gitignore`，不會進版控）：
+   ```
+   LINE_CHANNEL_SECRET=<Channel secret>
+   LINE_CHANNEL_ACCESS_TOKEN=<Channel access token (long-lived)>
+   PUBLIC_BASE_URL=<下一步的 ngrok 網址>
+   ```
+2. 另開一個終端機跑 `ngrok http 8000`，把它給的 `https://….ngrok-free.app` 填進 `.env` 的 `PUBLIC_BASE_URL`。
+3. `docker compose up -d app` 讓 app 讀到新的環境變數。
+4. Webhook URL 填 `<ngrok 網址>/line/webhook`，其餘照上面第 3–5 步。ngrok 免費版每次重開網址都會變，要重填 Webhook URL 和 `.env`。
+
+只想用假事件試 webhook：設好上面兩個環境變數，用 `bakery.line.sign(secret, body)` 算 `X-Line-Signature` 送假事件即可；測試（`tests/test_line_webhook.py`）就是這樣做，LINE API 用 httpx 的 `MockTransport` 替代。
 
 ### Neon 連線為什麼用直連
 
