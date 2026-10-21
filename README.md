@@ -2,6 +2,8 @@
 
 **English summary.** A bakery chain's six stores keep wedding-cake (喜餅) orders in Excel and already send the file to the central kitchen through a LINE group. This project keeps that habit: the stores fill in one shared Excel template and send it to a group that includes the kitchen's LINE Official Account. The backend (FastAPI + Postgres, no LLM) stores every original file, checks each row, merges the orders into one master list, classifies changes to orders already on record, holds production changes made too close to pickup for HQ review, and replies in the group with exactly what was accepted, what was refused and why. HQ, the kitchen and the owner log in to web pages for the master list, the kitchen's production summary, pending reviews and customer records. `docker compose up --build` runs it locally; `uv run bakery-demo --reset` replays the nine-step demo story against it. Everything is in Traditional Chinese below.
 
+**線上 demo：** https://bakery-orders-552937543387.asia-east1.run.app （Cloud Run `asia-east1`＋Neon，帳號見下方「demo 帳號」）。LINE 官方帳號的 webhook 已指到這個網址。設計說明簡報：https://bakery-orders-design.jtsai0606.workers.dev
+
 ## 要解決的問題
 
 中部一家老字號糕餅連鎖有 6 家門市和 1 個中央廚房，喜餅約占營收四成。各門市把喜餅訂單記在自己格式的 Excel，再用 LINE 把檔案傳給中央廚房；改單時只改掉 Excel 裡的一格，沒有人檢查，也沒有一份大家都信得過的總數，上一季就有 3 筆日期或數量記錯，造成退款和負評。這個專案不改門市的習慣：門市照舊記 Excel、照舊把檔案傳進 LINE 群組，只是換成一份統一的範本，群組裡多了中央廚房的 LINE 官方帳號（OA）。後端保存每一份原檔，逐列檢查、合併成總表，比對出哪些單被改了，過了修改截止點的修改先交給總部確認，並在群組裡回覆傳檔的人：收了什麼、哪一列沒收、為什麼。
@@ -135,9 +137,8 @@ uv run pytest   # 需要 Docker（testcontainers 每次測試起一個 Postgres�
 
 ## 已知的限制
 
-- **還沒部署到公開網址。** 部署腳本和步驟都寫好了（見下方「部署」），正式部署待 GCP 與 Neon 帳號開通：執行一次腳本，再在公開網址上傳一次檔案確認。
-- **還沒接上真的 LINE 群組。** webhook 已實作並有測試（LINE API 用假的替代），但官方帳號、Messaging API channel 和 demo 群組還要由專案負責人建立，之後才能在群組裡實際傳檔驗收。在那之前，用模擬群組上傳頁看回覆。
-- **demo 影片和群組邀請還沒有**，要等真的群組建好。
+- **冷啟動。** `min-instances 0`，閒置後第一個請求實測約 9.5 秒（之後正常）。LINE 的 reply token 有效 1 分鐘，冷啟動加處理仍在時限內；正式上線要穩定延遲，再改 `min-instances 1`。
+- **demo 影片和群組邀請還沒有。**
 - 只用模擬資料。demo 帳號的密碼公開寫在這份 README，部署後任何人都能登入，所以部署環境也只能放模擬資料。
 - 舊格式轉換器只有 TC02、CH01 兩家（模擬的舊檔只有這兩家）；其他門市要等拿到實際的舊檔再寫。
 - Cloud Run（台灣）與 Neon（新加坡）之間的實際延遲還沒實測。
@@ -234,7 +235,7 @@ service 用 `--cpu-throttling`（request-based 計費）：**HTTP 回應送出�
 4. LINE Official Account Manager → 設定 → 回應設定：關掉**自動回應訊息**和**加入好友的歡迎訊息**（不然 OA 會自己插話）；帳號設定裡打開**允許加入群組**。
 5. 把 OA 邀進群組（一個群組只能有一個 bot），在群組裡傳一份 `mock_data/day1/` 的檔案，1 分鐘內應收到跟模擬群組上傳頁一樣的回覆；第一次傳檔的帳號回覆第一行是「已記錄您為 ○○店（待總部確認）」，到 `/bindings` 確認。
 
-本機接真的 LINE 群組（還沒部署時）：
+本機接真的 LINE 群組（例如開發時，不想動到正式環境的 webhook）：
 
 1. 在 repo 根目錄建 `.env`（已在 `.gitignore`，不會進版控）：
    ```
