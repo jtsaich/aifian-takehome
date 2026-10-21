@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Export docs/design.md to docs/design.pdf.
+# Export docs/design.md to docs/design.pdf (or SRC=docs/boss-one-pager.md for the one-pager).
 # Requires pandoc and Google Chrome / Chromium (headless print-to-PDF; handles CJK fonts without LaTeX).
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
-src="$root/docs/design.md"
-out="${1:-$root/docs/design.pdf}"
+src="${SRC:-$root/docs/design.md}"
+out="${1:-${src%.md}.pdf}"
 
 chrome="${CHROME:-}"
 if [[ -z "$chrome" ]]; then
@@ -22,7 +22,11 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 css="$tmp/style.css"
 cat >"$css" <<'CSS'
-body { font-family: "PingFang TC", "Noto Sans TC", "Heiti TC", sans-serif; font-size: 10.5pt; line-height: 1.6; max-width: none; margin: 0; }
+body { font-family: "PingFang TC", "Noto Sans TC", "Heiti TC", sans-serif; font-size: 10.5pt; line-height: 1.6; max-width: none; margin: 0; padding: 0; }
+h1 { font-size: 16pt; margin: 0 0 8pt; }
+h2 { font-size: 12.5pt; margin: 12pt 0 4pt; }
+p, ul { margin: 4pt 0; }
+li { margin: 2pt 0; }
 table { border-collapse: collapse; width: 100%; font-size: 9pt; }
 th, td { border: 1px solid #999; padding: 3px 6px; vertical-align: top; }
 code { font-size: 9pt; }
