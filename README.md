@@ -2,7 +2,36 @@
 
 **English summary.** A bakery chain's six stores keep wedding-cake (喜餅) orders in Excel and already send the file to the central kitchen through a LINE group. This project keeps that habit: the stores fill in one shared Excel template and send it to a group that includes the kitchen's LINE Official Account. The backend (FastAPI + Postgres, no LLM) stores every original file, checks each row, merges the orders into one master list, classifies changes to orders already on record, holds production changes made too close to pickup for HQ review, and replies in the group with exactly what was accepted, what was refused and why. HQ, the kitchen and the owner log in to web pages for the master list, the kitchen's production summary, pending reviews and customer records. `docker compose up --build` runs it locally; `uv run bakery-demo --reset` replays the nine-step demo story against it. Everything is in Traditional Chinese below.
 
-**線上 demo：** https://bakery-orders-552937543387.asia-east1.run.app （Cloud Run `asia-east1`＋Neon，帳號見下方「demo 帳號」）。LINE 官方帳號的 webhook 已指到這個網址。設計說明簡報：https://bakery-orders-design.jtsai0606.workers.dev
+## 交付物
+
+| 項目 | 連結 |
+|---|---|
+| 線上 demo（Cloud Run `asia-east1`＋Neon） | https://bakery-orders-552937543387.asia-east1.run.app （帳號 `hq-lin`／`demo1234`，其他帳號見「Demo 帳號」） |
+| 操作影片（約 3 分鐘） | https://bakery-orders-design.jtsai0606.workers.dev/demo.mp4 |
+| 設計說明簡報 | https://bakery-orders-design.jtsai0606.workers.dev |
+| 給老闆的一頁說明 | [`docs/boss-one-pager.md`](docs/boss-one-pager.md)，PDF：https://bakery-orders-design.jtsai0606.workers.dev/one-pager.pdf |
+
+LINE 官方帳號的 webhook 已指到線上網址，真的 LINE 群組實測過。
+
+## 三分鐘試用
+
+**線上（不用安裝任何東西）：**
+
+1. 打開 https://bakery-orders-552937543387.asia-east1.run.app ，用 `hq-lin`／`demo1234` 登入。
+2. 從這個 repo 下載一份模擬檔，例如 [`mock_data/day1/TC01_台中中正店.xlsx`](mock_data/day1/TC01_台中中正店.xlsx)（裡面故意混了漏單號、盒數 0 等錯誤）。
+3. 到「模擬群組上傳」，傳檔者選「台中中正店 門市帳號」，上傳。畫面上的回覆就是門市在 LINE 群組會收到的內容。
+4. 看「總表」「廚房彙總」「上傳紀錄」「客人資料」。用 `kitchen` 帳號登入，只看得到總表和廚房彙總。
+
+**本機（需要 Docker 和 [uv](https://docs.astral.sh/uv/)）：**
+
+```sh
+git clone https://github.com/jtsaich/aifian-takehome.git && cd aifian-takehome
+docker compose up --build          # 開 http://localhost:8000 ，帳號同上
+uv sync && uv run bakery-demo --reset   # 另開終端機：自動重播 9 步 demo，印出每一步的回覆
+uv run pytest                      # 測試（需要 Docker）
+```
+
+細節見下方「怎麼跑」。
 
 ## 要解決的問題
 
