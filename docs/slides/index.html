@@ -201,16 +201,15 @@
 
 <section>
   <h2>技術選型：自建，還是用現成工具</h2>
-  <p class="small">先排除的限制：不論用哪種工具，「群組收檔、驗證、回覆」都要一個能接 LINE webhook 的程式。</p>
   <table class="small">
-    <tr><th>選項</th><th>費用（查證時）</th><th>問題</th></tr>
-    <tr><td>Ragic</td><td>USD 5–19／人／月</td><td>群組收檔、修改分類、待確認還是要自己寫</td></tr>
-    <tr><td>Google Sheets＋Apps Script</td><td>免費</td><td>驗不了 LINE 簽章；試算表可直接改，稽核紀錄不可靠</td></tr>
-    <tr><td>Airtable</td><td>Team USD 20–24／人／月</td><td>免費版筆數和 automation 次數偏緊</td></tr>
-    <tr><td>WiXtar 烘焙 POS</td><td>未公開</td><td>功能最貼近（喜餅接單轉工廠），但等於換 POS，是大決策</td></tr>
-    <tr><td><strong>自建</strong>（Python＋Postgres）</td><td>Cloud Run、Neon 免費額度內</td><td>要有人維護</td></tr>
+    <tr><th style="width:22%">類型</th><th style="width:38%">做得到什麼</th><th>限制</th></tr>
+    <tr><td><strong>現成會員系統</strong><br>Mobile.Cards、Ocard</td><td>一站式：品牌 App 或 LINE 會員卡、點數、會員分級、生日禮自動發送、推播；可加購 POS 串接</td><td>功能是套裝的，彈性小；喜餅訂單、門市 Excel、改單與截止點這段流程不在範圍內；POS 串接仍要外包廠商配合；價格都要洽詢</td></tr>
+    <tr><td><strong>No-code 工具</strong><br>Ragic、Google Sheets、Airtable</td><td>表單、資料表、Excel 匯入、簡單自動化；費用約每人每月 0–24 美元</td><td>業務規則（修改分類、截止點、待確認）還是要自己想清楚、自己搭；接 LINE 群組收檔仍要寫程式</td></tr>
+    <tr><td><strong>換成烘焙 POS</strong><br>WiXtar</td><td>POS 內建會員，也有喜餅接單轉工廠的功能</td><td>等於換掉現在的 POS，是大決策；價格未公開</td></tr>
+    <tr><td><strong>自建</strong></td><td>要做哪些功能、接哪些系統，由我們決定；可以先做訂單，再接會員和 POS</td><td>要有人維護；全部資料隨時能下載 Excel，不會被綁住</td></tr>
   </table>
-  <p><strong>結論：MVP 自建。</strong>要解決的核心正是修改分類、截止點這些規則，放進試算表反而難測。降低維護風險：全部資料隨時能下載 Excel。客戶若本來就想換 POS，WiXtar 要認真比價。</p>
+  <p><strong>結論：自建。</strong>彈性最大：要做什麼功能、要做哪些整合，都能依現場和行銷的需要決定，不受套裝功能限制。</p>
+  <p class="muted small">技術組合（Python＋Postgres、Cloud Run＋Neon）是初期 PoC 最快、最便宜的選擇，目前在免費額度內。等客人數量和會員規模清楚了，再看要不要擴充或調整架構。</p>
 </section>
 
 <section>
